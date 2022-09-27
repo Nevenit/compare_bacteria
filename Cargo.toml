@@ -1,0 +1,25 @@
+[package]
+name = "compare_bacteria"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+[profile.release]
+panic = 'abort'
+debug = true
+
+[dependencies]
+rustc-hash = "1.1.0"
+profiling = "1.0.6"
+colored = "2.0.0"
+coarsetime = "0.1.22"
+
+[features]
+profile-with-superluminal = ["profiling/profile-with-superluminal"]
+
+#[dev-dependencies]
+#criterion = "0.4.0"
+
+#[[bench]]
+#name = "for_while_test"
+#harness = false
