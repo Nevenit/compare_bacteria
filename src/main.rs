@@ -139,7 +139,7 @@ impl Bacteria {
         }
 
         // Initialise variables
-        let mut t: Box<[f64]> = vec![0.0; M].into_boxed_slice();
+        //let mut t: Box<[f64]> = vec![0.0; M].into_boxed_slice();
 
         profiler.end("fill_arrays");
         profiler.start("calculate_t");
@@ -172,8 +172,8 @@ impl Bacteria {
             }
 
             if stochastic > EPSILON {
-                t[i] = (bc.vector[i] as f64 - stochastic) / stochastic;
-                self.tv.push(t[i]);
+                //t[i] = (bc.vector[i] as f64 - stochastic) / stochastic;
+                self.tv.push((bc.vector[i] as f64 - stochastic) / stochastic);
                 self.ti.push(i as i64);
                 self.count += 1;
             }
