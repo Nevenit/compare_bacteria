@@ -32,8 +32,8 @@ impl Vars {
 // Stores the public variables of Bacteria
 pub struct Bacteria {
     pub count: i64,
-    pub tv: Box<[f64]>,
-    pub ti: Box<[i64]>
+    pub tv: Vec<f64>,
+    pub ti: Vec<i64>
 }
 
 // Stores the private variables of Bacteria
@@ -139,11 +139,13 @@ impl Bacteria {
         }
 
         // Initialise variables
-        self.count = 0;
         let mut t: Box<[f64]> = vec![0.0; M].into_boxed_slice();
 
         profiler.end("fill_arrays");
         profiler.start("calculate_t");
+
+        self.tv = vec![];
+        self.ti = vec![];
 
         // Loop Through all possible kmers
         for i in 0..M {
@@ -171,27 +173,12 @@ impl Bacteria {
 
             if stochastic > EPSILON {
                 t[i] = (bc.vector[i] as f64 - stochastic) / stochastic;
+                self.tv.push(t[i]);
+                self.ti.push(i as i64);
                 self.count += 1;
-            } else {
-                t[i] = 0.0;
             }
         }
         profiler.end("calculate_t");
-
-        profiler.start("calculate_tv_and_ti");
-        self.tv = vec![0.0; self.count as usize].into_boxed_slice();
-        self.ti = vec![0; self.count as usize].into_boxed_slice();
-
-        let mut pos = 0;
-        for i in 0..M {
-            if t[i] != 0.0 {
-                self.tv[pos] = t[i];
-                self.ti[pos] = i as i64;
-                pos += 1;
-            }
-        }
-        profiler.end("calculate_tv_and_ti");
-
     }
 
     fn init_buffer(&mut self, bc: &mut BacteriaCounters, buffer: [u8; LEN - 1]) {
@@ -311,8 +298,8 @@ fn compare_all_bacteria(program_vars: &mut Vars, profiler: &mut Profiler) {
         // Initialise the struct
         bacteria_array.push(Bacteria {
             count: 0,
-            tv: vec![].into_boxed_slice(),
-            ti: vec![].into_boxed_slice()
+            tv: vec![],
+            ti: vec![]
         });
 
         profiler.start(format!("init_bacteria {}", i).as_str());
