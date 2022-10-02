@@ -1,6 +1,6 @@
 pub mod bad_profiler {
-    use std::alloc::System;
-    use std::time::{Duration, SystemTime};
+    //use std::alloc::System;
+    use std::time::SystemTime;
     use colored::*;
     pub struct Profiler {
         enabled: bool,
@@ -17,7 +17,7 @@ pub mod bad_profiler {
     impl Profiler {
         pub fn new() -> Profiler {
             Profiler {
-                enabled: false,
+                enabled: true,
                 indent: 0,
                 name: vec![],
                 start: vec![],
@@ -99,7 +99,7 @@ pub mod bad_profiler {
                 }
                 */
                 //indent = format!("{}{}", "└", indent);
-                for j in 0..self.indents[i] {
+                for _j in 0..self.indents[i] {
                     indent = indent + " ";
                 }
                 indent = indent + "└";

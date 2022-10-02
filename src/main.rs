@@ -1,15 +1,15 @@
 mod bad_profiler;
 use crate::bad_profiler::bad_profiler::Profiler;
 
-//use rustc_hash::FxHashMap;
+use rustc_hash::FxHashMap;
 use std::fs;
 use std::str;
 use std::env;
-use std::time::{Instant, SystemTime};
+use std::time::Instant;
 
 const CODE: [i32; 26] = [0, 2, 1, 2, 3, 4, 5, 6, 7, -1, 8, 9, 10, 11, -1, 12, 13, 14, 15, 16, 1, 17, 18, 5, 19, 3];
 const LEN: usize = 6;
-const  AA_NUMBER: usize = 20;
+const AA_NUMBER: usize = 20;
 const EPSILON: f64 = 1e-010;
 const M: usize = usize::pow(AA_NUMBER, LEN as u32);
 const M1: usize = usize::pow(AA_NUMBER, (LEN - 1) as u32);
@@ -121,6 +121,88 @@ impl Bacteria {
         // Initialise variables
         let total_plus_complement: f64 = bc.total as f64 + bc.complement as f64 ;
         let total_div_2: f64 = bc.total as f64 * 0.5;
+
+        if true {
+
+            // Fill the one_l_div_total array
+            let mut one_l_div_total: FxHashMap<usize, f64> = FxHashMap::default();
+            for i in 0..AA_NUMBER {
+                if bc.one_l[i] > 0 {
+                    //let one_l_div = bc.one_l[i] as f64 / bc.total_l as f64;
+                    one_l_div_total.insert(i, bc.one_l[i] as f64 / bc.total_l as f64);
+                }
+            }
+
+            // Fill the second_div_total array
+            let mut second_div_total: FxHashMap<usize, f64> = FxHashMap::default();
+            for i in 0..M1 {
+                if bc.second[i] > 0 {
+                    //let second_div = bc.second[i] as f64 / total_plus_complement;
+                    second_div_total.insert(i, bc.second[i] as f64 / total_plus_complement);
+                }
+            }
+
+            // Initialise variables
+            //let mut t: Box<[f64]> = vec![0.0; M].into_boxed_slice();
+
+            profiler.end("fill_arrays");
+            profiler.start("calculate_t");
+
+            let mut p1p2: FxHashMap<usize, f64> = FxHashMap::default();
+            let mut p3p4: FxHashMap<usize, f64> = FxHashMap::default();
+            let mut indexes: Vec<usize> = vec![];
+
+            for key_div in second_div_total.keys() {
+                for key_mod in one_l_div_total.keys() {
+                    let index = key_div * AA_NUMBER + key_mod;
+                    p1p2.insert(index, second_div_total.get(key_div).unwrap() * one_l_div_total.get(key_mod).unwrap());
+                    indexes.push(index);
+                }
+            }
+
+            for key_div in one_l_div_total.keys() {
+                for key_mod in second_div_total.keys() {
+                    let index = key_div * M1 + key_mod;
+                    p3p4.insert(index, second_div_total.get(key_mod).unwrap() * one_l_div_total.get(key_div).unwrap());
+                    //match indexes.binary_search(&index) {
+                    //    Ok(pos) => {} // element already in vector @ `pos`
+                    //    Err(pos) => indexes.insert(pos, index),
+                    //}
+                }
+            }
+
+            self.tv = vec![];
+            self.ti = vec![];
+
+            indexes.sort();
+
+            for index in indexes {
+                let p1p2val: f64;
+                let p3p4val: f64;
+                match p1p2.get(&index) {
+                    Some(val) => p1p2val = *val,
+                    None => p1p2val = 0.0
+                };
+
+                match p3p4.get(&index) {
+                    Some(val) => p3p4val = *val,
+                    None => p3p4val = 0.0
+                };
+
+                let stochastic: f64 = (p1p2val + p3p4val) * total_div_2;
+
+                if stochastic > EPSILON {
+                    self.tv.push((bc.vector[index] as f64 - stochastic) / stochastic);
+                    //println!("{}:{} + {}", index, p1p2val, p3p4val);
+                    self.ti.push(index as i64);
+                    self.count += 1;
+                }
+            }
+        } else {
+
+        // Initialise variables
+        let total_plus_complement: f64 = bc.total as f64 + bc.complement as f64 ;
+        let total_div_2: f64 = bc.total as f64 * 0.5;
         let mut i_mod_aa_number: usize = 0;
         let mut i_div_aa_number: usize = 0;
         let mut i_mod_m1: usize = 0;
@@ -148,12 +230,14 @@ impl Bacteria {
         self.ti = vec![];
 
         // Loop Through all possible kmers
+
         for i in 0..M {
             let p1: f64 = second_div_total[i_div_aa_number];
             let p2: f64 = one_l_div_total[i_mod_aa_number];
             let p3: f64 = second_div_total[i_mod_m1];
             let p4: f64 = one_l_div_total[i_div_m1];
             let stochastic: f64 = (p1 * p2 + p3 * p4) * total_div_2;
+
 
             if i_mod_aa_number == AA_NUMBER - 1 {
                 i_mod_aa_number = 0;
@@ -174,9 +258,12 @@ impl Bacteria {
             if stochastic > EPSILON {
                 //t[i] = (bc.vector[i] as f64 - stochastic) / stochastic;
                 self.tv.push((bc.vector[i] as f64 - stochastic) / stochastic);
+                println!("{}:{} + {}", i, p1 * p2, p3 * p4);
                 self.ti.push(i as i64);
                 self.count += 1;
             }
+        }
+
         }
         profiler.end("calculate_t");
     }
@@ -263,7 +350,7 @@ fn compare_bacteria(b1: &Bacteria, b2: &Bacteria, profiler: &mut Profiler) -> f6
     profiler.end("p1_and_p2");
     profiler.start("p1");
     while p1 < b1.count as usize {
-        let n1 = b1.ti[p1];
+        //let n1 = b1.ti[p1];
         let t1 = b1.tv[p1];
         p1 += 1;
         vector_len1 += t1 * t1;
@@ -271,7 +358,7 @@ fn compare_bacteria(b1: &Bacteria, b2: &Bacteria, profiler: &mut Profiler) -> f6
     profiler.end("p1");
     profiler.start("p2");
     while p2 < b2.count as usize {
-        let n2 = b2.ti[p2];
+        //let n2 = b2.ti[p2];
         let t2 = b2.tv[p2];
         p2 += 1;
         vector_len2 += t2 * t2;
