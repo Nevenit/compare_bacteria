@@ -122,9 +122,68 @@ impl Bacteria {
         let total_plus_complement: f64 = bc.total as f64 + bc.complement as f64 ;
         let total_div_2: f64 = bc.total as f64 * 0.5;
 
+        ///*
+
+        let mut i_mod_aa_number: usize = 0;
+        let mut i_div_aa_number: usize = 0;
+        let mut i_mod_m1: usize = 0;
+        let mut i_div_m1: usize = 0;
+
+        // Fill the one_l_div_total array
+        let mut one_l_div_total: Vec<(usize, f64)> = vec![];
+        for i in 0..AA_NUMBER {
+            if bc.one_l[i] == 0 {continue}
+            one_l_div_total.push((i, bc.one_l[i] as f64 / bc.total_l as f64));
+        }
+
+        // Fill the second_div_total array
+        let mut second_div_total: Vec<(usize, f64)> = vec![];
+        for i in 0..M1 {
+            if bc.second[i] == 0 {continue}
+            second_div_total.push((i, bc.second[i] as f64 / total_plus_complement));
+        }
+
+        profiler.end("fill_arrays");
+        profiler.start("calculate_t");
+
+        self.tv = vec![];
+        self.ti = vec![];
+
+        // Loop Through all possible kmers
+        for i in 0..M {
+            let p1: f64 = second_div_total[i_div_aa_number];
+            let p2: f64 = one_l_div_total[i_mod_aa_number];
+            let p3: f64 = second_div_total[i_mod_m1];
+            let p4: f64 = one_l_div_total[i_div_m1];
+            let stochastic: f64 = (p1 * p2 + p3 * p4) * total_div_2;
+            //leet
+
+            if i_mod_aa_number == AA_NUMBER - 1 {
+                i_mod_aa_number = 0;
+                i_div_aa_number += 1;
+            } else {
+                i_mod_aa_number += 1;
+            }
+
+            if i_mod_m1 == M1 - 1 {
+                i_mod_m1 = 0;
+                i_div_m1 += 1;
+            } else {
+                i_mod_m1 += 1;
+            }
+
+            if stochastic > EPSILON {
+                //t[i] = (bc.vector[i] as f64 - stochastic) / stochastic;
+                self.tv.push((bc.vector[i] as f64 - stochastic) / stochastic);
+                //println!("{}:{} + {}", i, p1 * p2, p3 * p4);
+                self.ti.push(i as i64);
+                self.count += 1;
+            }
+        }
+        //*/
+
+        /*
         // Initialise variables
-        let total_plus_complement: f64 = bc.total as f64 + bc.complement as f64 ;
-        let total_div_2: f64 = bc.total as f64 * 0.5;
         let mut i_mod_aa_number: usize = 0;
         let mut i_div_aa_number: usize = 0;
         let mut i_mod_m1: usize = 0;
@@ -184,7 +243,7 @@ impl Bacteria {
                 self.count += 1;
             }
         }
-
+        */
         profiler.end("calculate_t");
     }
 
