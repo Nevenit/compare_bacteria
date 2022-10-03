@@ -147,14 +147,11 @@ impl Bacteria {
 
             let mut p1p2: FxHashMap<usize, f64> = FxHashMap::default();
             let mut p3p4: FxHashMap<usize, f64> = FxHashMap::default();
-            let mut indexes: Vec<usize> = vec![];
-            let mut stochastic: FxHashMap<usize, [f64; 2]> = FxHashMap::default();
 
             for key_div in second_div_total.keys() {
                 for key_mod in one_l_div_total.keys() {
                     let index = key_div * AA_NUMBER + key_mod;
                     p1p2.insert(index, second_div_total.get(key_div).unwrap() * one_l_div_total.get(key_mod).unwrap());
-                    indexes.push(index);
                 }
             }
 
@@ -162,7 +159,6 @@ impl Bacteria {
                 for key_mod in second_div_total.keys() {
                     let index = key_div * M1 + key_mod;
                     p3p4.insert(index, second_div_total.get(key_mod).unwrap() * one_l_div_total.get(key_div).unwrap());
-                    indexes.push(index);
                 }
             }
 
@@ -172,36 +168,46 @@ impl Bacteria {
             self.tv = vec![];
             self.ti = vec![];
 
-            profiler.start("sort_array");
-            indexes.sort();
-            profiler.end("sort_array");
-            let mut previous_index: usize = 0;
+            let mut p1p2keys = p1p2.keys();
+            let mut p3p4keys = p3p4.keys();
 
-            for index in indexes {
-                if index == previous_index {continue;}
+            let mut p1p2key = p1p2keys.next();
+            let mut p3p4key = p3p4keys.next();
 
-                let p1p2val: f64;
-                let p3p4val: f64;
-                match p1p2.get(&index) {
-                    Some(val) => p1p2val = *val,
-                    None => p1p2val = 0.0
-                };
+            while (p1p2keys.len() >= 0 && p3p4keys.len() >= 0) && (p1p2key != None && p3p4key != None) {
+                let stochastic: f64;
+                let index: usize;
 
-                match p3p4.get(&index) {
-                    Some(val) => p3p4val = *val,
-                    None => p3p4val = 0.0
-                };
-
-                let stochastic: f64 = (p1p2val + p3p4val) * total_div_2;
-
+                if p1p2key == None {
+                    stochastic = p3p4.get(p3p4key.unwrap()).unwrap() * total_div_2;
+                    index = *p3p4key.unwrap();
+                    p3p4key = p3p4keys.next();
+                } else if p3p4key == None {
+                    stochastic = p1p2.get(p1p2key.unwrap()).unwrap() * total_div_2;
+                    index = *p1p2key.unwrap();
+                    p1p2key = p1p2keys.next();
+                } else {
+                    if p1p2key.unwrap() < p3p4key.unwrap() {
+                        stochastic = p1p2.get(p1p2key.unwrap()).unwrap() * total_div_2;
+                        index = *p1p2key.unwrap();
+                        p1p2key = p1p2keys.next();
+                    } else if p1p2key.unwrap() > p3p4key.unwrap() {
+                        stochastic = p3p4.get(p3p4key.unwrap()).unwrap() * total_div_2;
+                        index = *p3p4key.unwrap();
+                        p3p4key = p3p4keys.next();
+                    } else {
+                        stochastic = (p1p2.get(p1p2key.unwrap()).unwrap() + p3p4.get(p3p4key.unwrap()).unwrap()) * total_div_2;
+                        index = *p1p2key.unwrap();
+                        p1p2key = p1p2keys.next();
+                        p3p4key = p3p4keys.next();
+                    }
+                }
                 if stochastic > EPSILON {
                     self.tv.push((bc.vector[index] as f64 - stochastic) / stochastic);
                     //println!("{}:{} + {}", index, p1p2val, p3p4val);
                     self.ti.push(index as i64);
                     self.count += 1;
                 }
-
-                previous_index = index;
             }
         } else {
 
