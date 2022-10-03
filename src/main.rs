@@ -122,95 +122,6 @@ impl Bacteria {
         let total_plus_complement: f64 = bc.total as f64 + bc.complement as f64 ;
         let total_div_2: f64 = bc.total as f64 * 0.5;
 
-        if true {
-
-            // Fill the one_l_div_total array
-            let mut one_l_div_total: FxHashMap<usize, f64> = FxHashMap::default();
-            for i in 0..AA_NUMBER {
-                if bc.one_l[i] > 0 {
-                    //let one_l_div = bc.one_l[i] as f64 / bc.total_l as f64;
-                    one_l_div_total.insert(i, bc.one_l[i] as f64 / bc.total_l as f64);
-                }
-            }
-
-            // Fill the second_div_total array
-            let mut second_div_total: FxHashMap<usize, f64> = FxHashMap::default();
-            for i in 0..M1 {
-                if bc.second[i] > 0 {
-                    //let second_div = bc.second[i] as f64 / total_plus_complement;
-                    second_div_total.insert(i, bc.second[i] as f64 / total_plus_complement);
-                }
-            }
-
-            // Initialise variables
-            //let mut t: Box<[f64]> = vec![0.0; M].into_boxed_slice();
-
-            let mut p1p2: FxHashMap<usize, f64> = FxHashMap::default();
-            let mut p3p4: FxHashMap<usize, f64> = FxHashMap::default();
-
-            for key_div in second_div_total.keys() {
-                for key_mod in one_l_div_total.keys() {
-                    let index = key_div * AA_NUMBER + key_mod;
-                    p1p2.insert(index, second_div_total.get(key_div).unwrap() * one_l_div_total.get(key_mod).unwrap());
-                }
-            }
-
-            for key_div in one_l_div_total.keys() {
-                for key_mod in second_div_total.keys() {
-                    let index = key_div * M1 + key_mod;
-                    p3p4.insert(index, second_div_total.get(key_mod).unwrap() * one_l_div_total.get(key_div).unwrap());
-                }
-            }
-
-            profiler.end("fill_arrays");
-            profiler.start("calculate_t");
-
-            self.tv = vec![];
-            self.ti = vec![];
-
-            let mut p1p2keys = p1p2.keys();
-            let mut p3p4keys = p3p4.keys();
-
-            let mut p1p2key = p1p2keys.next();
-            let mut p3p4key = p3p4keys.next();
-
-            while (p1p2keys.len() >= 0 && p3p4keys.len() >= 0) && (p1p2key != None && p3p4key != None) {
-                let stochastic: f64;
-                let index: usize;
-
-                if p1p2key == None {
-                    stochastic = p3p4.get(p3p4key.unwrap()).unwrap() * total_div_2;
-                    index = *p3p4key.unwrap();
-                    p3p4key = p3p4keys.next();
-                } else if p3p4key == None {
-                    stochastic = p1p2.get(p1p2key.unwrap()).unwrap() * total_div_2;
-                    index = *p1p2key.unwrap();
-                    p1p2key = p1p2keys.next();
-                } else {
-                    if p1p2key.unwrap() < p3p4key.unwrap() {
-                        stochastic = p1p2.get(p1p2key.unwrap()).unwrap() * total_div_2;
-                        index = *p1p2key.unwrap();
-                        p1p2key = p1p2keys.next();
-                    } else if p1p2key.unwrap() > p3p4key.unwrap() {
-                        stochastic = p3p4.get(p3p4key.unwrap()).unwrap() * total_div_2;
-                        index = *p3p4key.unwrap();
-                        p3p4key = p3p4keys.next();
-                    } else {
-                        stochastic = (p1p2.get(p1p2key.unwrap()).unwrap() + p3p4.get(p3p4key.unwrap()).unwrap()) * total_div_2;
-                        index = *p1p2key.unwrap();
-                        p1p2key = p1p2keys.next();
-                        p3p4key = p3p4keys.next();
-                    }
-                }
-                if stochastic > EPSILON {
-                    self.tv.push((bc.vector[index] as f64 - stochastic) / stochastic);
-                    //println!("{}:{} + {}", index, p1p2val, p3p4val);
-                    self.ti.push(index as i64);
-                    self.count += 1;
-                }
-            }
-        } else {
-
         // Initialise variables
         let total_plus_complement: f64 = bc.total as f64 + bc.complement as f64 ;
         let total_div_2: f64 = bc.total as f64 * 0.5;
@@ -273,7 +184,6 @@ impl Bacteria {
                 self.ti.push(i as i64);
                 self.count += 1;
             }
-        }
 
         }
         profiler.end("calculate_t");
