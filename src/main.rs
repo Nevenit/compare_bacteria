@@ -145,12 +145,10 @@ impl Bacteria {
             // Initialise variables
             //let mut t: Box<[f64]> = vec![0.0; M].into_boxed_slice();
 
-            profiler.end("fill_arrays");
-            profiler.start("calculate_t");
-
             let mut p1p2: FxHashMap<usize, f64> = FxHashMap::default();
             let mut p3p4: FxHashMap<usize, f64> = FxHashMap::default();
             let mut indexes: Vec<usize> = vec![];
+            let mut stochastic: FxHashMap<usize, [f64; 2]> = FxHashMap::default();
 
             for key_div in second_div_total.keys() {
                 for key_mod in one_l_div_total.keys() {
@@ -164,19 +162,24 @@ impl Bacteria {
                 for key_mod in second_div_total.keys() {
                     let index = key_div * M1 + key_mod;
                     p3p4.insert(index, second_div_total.get(key_mod).unwrap() * one_l_div_total.get(key_div).unwrap());
-                    //match indexes.binary_search(&index) {
-                    //    Ok(pos) => {} // element already in vector @ `pos`
-                    //    Err(pos) => indexes.insert(pos, index),
-                    //}
+                    indexes.push(index);
                 }
             }
+
+            profiler.end("fill_arrays");
+            profiler.start("calculate_t");
 
             self.tv = vec![];
             self.ti = vec![];
 
+            profiler.start("sort_array");
             indexes.sort();
+            profiler.end("sort_array");
+            let mut previous_index: usize = 0;
 
             for index in indexes {
+                if index == previous_index {continue;}
+
                 let p1p2val: f64;
                 let p3p4val: f64;
                 match p1p2.get(&index) {
@@ -197,6 +200,8 @@ impl Bacteria {
                     self.ti.push(index as i64);
                     self.count += 1;
                 }
+
+                previous_index = index;
             }
         } else {
 
@@ -258,7 +263,7 @@ impl Bacteria {
             if stochastic > EPSILON {
                 //t[i] = (bc.vector[i] as f64 - stochastic) / stochastic;
                 self.tv.push((bc.vector[i] as f64 - stochastic) / stochastic);
-                println!("{}:{} + {}", i, p1 * p2, p3 * p4);
+                //println!("{}:{} + {}", i, p1 * p2, p3 * p4);
                 self.ti.push(i as i64);
                 self.count += 1;
             }

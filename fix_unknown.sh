@@ -1,1 +1,1 @@
-echo 0 | sudo ree /proc/sys/kernel/kptr_restrict
+echo 0 | sudo tee /proc/sys/kernel/kptr_restrict
