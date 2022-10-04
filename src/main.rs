@@ -314,7 +314,6 @@ fn compare_all_bacteria(program_vars: &mut Vars, profiler: &mut Profiler) {
 
         // Call the bacteria initialization function
         bacteria_array[i as usize].init(&program_vars.bacteria_path[i as usize], profiler);
-
         profiler.end(format!("init_bacteria {}", i).as_str());
     }
 
