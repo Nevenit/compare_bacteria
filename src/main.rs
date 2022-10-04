@@ -143,6 +143,20 @@ impl Bacteria {
             second_div_total.push((i, bc.second[i] as f64 / total_plus_complement));
         }
 
+        let mut p1p2: Vec<(usize, f64)> = vec![];
+        for div_aa in second_div_total {
+            for mod_aa in one_l_div_total {
+                p1p2.push((div_aa.0 * AA_NUMBER + mod_aa.0, div_aa.1 * mod_aa.1))
+            }
+        }
+
+        let mut p3p4: Vec<(usize, f64)> = vec![];
+        for div_m1 in one_l_div_total {
+            for mod_m1 in second_div_total {
+                p3p4.push((div_m1.0 * M1 + mod_m1.0, div_m1.1 * mod_m1.1))
+            }
+        }
+
         profiler.end("fill_arrays");
         profiler.start("calculate_t");
 
@@ -156,7 +170,6 @@ impl Bacteria {
             let p3: f64 = second_div_total[i_mod_m1];
             let p4: f64 = one_l_div_total[i_div_m1];
             let stochastic: f64 = (p1 * p2 + p3 * p4) * total_div_2;
-            //leet
 
             if i_mod_aa_number == AA_NUMBER - 1 {
                 i_mod_aa_number = 0;
@@ -173,9 +186,7 @@ impl Bacteria {
             }
 
             if stochastic > EPSILON {
-                //t[i] = (bc.vector[i] as f64 - stochastic) / stochastic;
                 self.tv.push((bc.vector[i] as f64 - stochastic) / stochastic);
-                //println!("{}:{} + {}", i, p1 * p2, p3 * p4);
                 self.ti.push(i as i64);
                 self.count += 1;
             }
