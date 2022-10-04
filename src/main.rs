@@ -146,19 +146,22 @@ impl Bacteria {
         profiler.end("fill_arrays");
         profiler.start("calculate p1 p2 p3 p4");
 
-        let mut p1p2: Vec<(usize, f64)> = vec![];
+        let mut p1p2_vec: Vec<(usize, f64)> = vec![];
         for div_aa in &second_div_total {
             for mod_aa in &one_l_div_total {
-                p1p2.push((div_aa.0 * AA_NUMBER + mod_aa.0, div_aa.1 * mod_aa.1))
+                p1p2_vec.push((div_aa.0 * AA_NUMBER + mod_aa.0, div_aa.1 * mod_aa.1))
             }
         }
 
-        let mut p3p4: Vec<(usize, f64)> = vec![];
+        let mut p3p4_vec: Vec<(usize, f64)> = vec![];
         for div_m1 in &one_l_div_total {
             for mod_m1 in &second_div_total {
-                p3p4.push((div_m1.0 * M1 + mod_m1.0, div_m1.1 * mod_m1.1))
+                p3p4_vec.push((div_m1.0 * M1 + mod_m1.0, div_m1.1 * mod_m1.1))
             }
         }
+
+        let p1p2 = p1p2_vec.into_boxed_slice();
+        let p3p4 = p3p4_vec.into_boxed_slice();
 
         profiler.end("calculate p1 p2 p3 p4");
         profiler.start("calculate_t");
@@ -168,9 +171,29 @@ impl Bacteria {
 
         let mut p1p2_index = 0;
         let mut p3p4_index = 0;
-        while p1p2_index < p1p2.len() && p3p4_index < p1p2.len() {
+        loop {
             let index: usize;
             let stochastic: f64;
+
+            if p1p2_index == p1p2.len() && p3p4_index < p3p4.len(){
+                while p3p4_index < p3p4.len() {
+                    let stochas = p3p4[p3p4_index].1 * total_div_2;
+                    self.tv.push((bc.vector[p3p4_index] as f64 - stochas) / stochas);
+                    self.ti.push(p3p4_index as i64);
+                    self.count += 1;
+                    p3p4_index += 1;
+                }
+                break;
+            } else if p3p4_index == p3p4.len() && p1p2_index < p1p2.len() {
+                while p1p2_index < p1p2.len() {
+                    let stochas = p1p2[p1p2_index].1 * total_div_2;
+                    self.tv.push((bc.vector[p1p2_index] as f64 - stochas) / stochas);
+                    self.ti.push(p1p2_index as i64);
+                    self.count += 1;
+                    p1p2_index += 1;
+                }
+                break;
+            }
 
             if p1p2[p1p2_index].0 < p3p4[p3p4_index].0 {
                 stochastic = p1p2[p1p2_index].1 * total_div_2;
@@ -190,6 +213,7 @@ impl Bacteria {
             self.tv.push((bc.vector[index] as f64 - stochastic) / stochastic);
             self.ti.push(index as i64);
             self.count += 1;
+            if p1p2_index == p1p2.len() && p3p4_index == p3p4.len() {break;}
         }
 /*
         // Loop Through all possible kmers
