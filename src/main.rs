@@ -179,8 +179,8 @@ impl Bacteria {
                 while p3p4_index < p3p4.len() {
                     let stochas = p3p4[p3p4_index].1 * total_div_2;
                     if stochas > EPSILON {
-                        self.tv.push((bc.vector[p3p4_index] as f64 - stochas) / stochas);
-                        self.ti.push(p3p4_index as i64);
+                        self.tv.push((bc.vector[p3p4[p3p4_index].0] as f64 - stochas) / stochas);
+                        self.ti.push(p3p4[p3p4_index].0 as i64);
                         self.count += 1;
                     }
                     p3p4_index += 1;
@@ -190,8 +190,8 @@ impl Bacteria {
                 while p1p2_index < p1p2.len() {
                     let stochas = p1p2[p1p2_index].1 * total_div_2;
                     if stochas > EPSILON {
-                        self.tv.push((bc.vector[p1p2_index] as f64 - stochas) / stochas);
-                        self.ti.push(p1p2_index as i64);
+                        self.tv.push((bc.vector[p1p2[p1p2_index].0] as f64 - stochas) / stochas);
+                        self.ti.push(p1p2[p1p2_index].0 as i64);
                         self.count += 1;
                     }
                     p1p2_index += 1;
