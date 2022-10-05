@@ -215,6 +215,11 @@ impl Bacteria {
             self.count += 1;
             if p1p2_index == p1p2.len() && p3p4_index == p3p4.len() {break;}
         }
+
+        for i in 0..self.count-1 {
+            if self.tv[i as usize] < 0.0 {continue}
+            println!("{}:{}", self.ti[i as usize], self.tv[i as usize]);
+        }
 /*
         // Loop Through all possible kmers
         for i in 0..M {
@@ -454,7 +459,7 @@ fn compare_all_bacteria(program_vars: &mut Vars, profiler: &mut Profiler) {
 
             // Calculate and print the correlation between the two bacteria
             let correlation = compare_bacteria(&bacteria_array[i as usize], &bacteria_array[j as usize], profiler);
-            println!("{:.20}", correlation);
+            //println!("{:.20}", correlation);
         }
     }
     profiler.end("compare_bacteria");
