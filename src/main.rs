@@ -197,15 +197,15 @@ impl Bacteria {
 
             if p1p2[p1p2_index].0 < p3p4[p3p4_index].0 {
                 stochastic = p1p2[p1p2_index].1 * total_div_2;
-                index = p1p2_index;
+                index = p1p2[p1p2_index].0;
                 p1p2_index += 1;
             } else if p1p2[p1p2_index].0 > p3p4[p3p4_index].0 {
                 stochastic = p3p4[p3p4_index].1 * total_div_2;
-                index = p3p4_index;
+                index = p3p4[p3p4_index].0;
                 p3p4_index += 1;
             } else {
                 stochastic = (p1p2[p1p2_index].1 + p3p4[p3p4_index].1) * total_div_2;
-                index = p1p2_index;
+                index = p1p2[p1p2_index].0;
                 p1p2_index += 1;
                 p3p4_index += 1;
             }
@@ -216,10 +216,10 @@ impl Bacteria {
             if p1p2_index == p1p2.len() && p3p4_index == p3p4.len() {break;}
         }
 
-        for i in 0..self.count-1 {
-            if self.tv[i as usize] < 0.0 {continue}
-            println!("{}:{}", self.ti[i as usize], self.tv[i as usize]);
-        }
+        //for i in 0..self.count-1 {
+        //    if self.tv[i as usize] < 0.0 {continue}
+        //    println!("{}:{}", self.ti[i as usize], self.tv[i as usize]);
+        //}
 /*
         // Loop Through all possible kmers
         for i in 0..M {
@@ -459,7 +459,7 @@ fn compare_all_bacteria(program_vars: &mut Vars, profiler: &mut Profiler) {
 
             // Calculate and print the correlation between the two bacteria
             let correlation = compare_bacteria(&bacteria_array[i as usize], &bacteria_array[j as usize], profiler);
-            //println!("{:.20}", correlation);
+            println!("{:.20}", correlation);
         }
     }
     profiler.end("compare_bacteria");
