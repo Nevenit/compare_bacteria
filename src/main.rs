@@ -146,22 +146,19 @@ impl Bacteria {
         profiler.end("fill_arrays");
         profiler.start("calculate p1 p2 p3 p4");
 
-        let mut p1p2_vec: Vec<(usize, f64)> = vec![];
+        let mut p1p2: Vec<(usize, f64)> = vec![];
         for div_aa in &second_div_total {
             for mod_aa in &one_l_div_total {
-                p1p2_vec.push((div_aa.0 * AA_NUMBER + mod_aa.0, div_aa.1 * mod_aa.1))
+                p1p2.push((div_aa.0 * AA_NUMBER + mod_aa.0, div_aa.1 * mod_aa.1))
             }
         }
 
-        let mut p3p4_vec: Vec<(usize, f64)> = vec![];
+        let mut p3p4: Vec<(usize, f64)> = vec![];
         for div_m1 in &one_l_div_total {
             for mod_m1 in &second_div_total {
-                p3p4_vec.push((div_m1.0 * M1 + mod_m1.0, div_m1.1 * mod_m1.1))
+                p3p4.push((div_m1.0 * M1 + mod_m1.0, div_m1.1 * mod_m1.1))
             }
         }
-
-        let p1p2 = p1p2_vec.into_boxed_slice();
-        let p3p4 = p3p4_vec.into_boxed_slice();
 
         profiler.end("calculate p1 p2 p3 p4");
         profiler.start("calculate_t");
@@ -395,7 +392,7 @@ fn compare_bacteria(b1: &Bacteria, b2: &Bacteria, profiler: &mut Profiler) -> f6
         } else if _n2 < _n1 {
             let t2 = b2.tv[p2];
             p2 += 1;
-            vector_len2 += t2 *  t2;
+            vector_len2 += t2 * t2;
         } else {
             let t1 = b1.tv[p1];
             let t2 = b2.tv[p2];
@@ -409,7 +406,6 @@ fn compare_bacteria(b1: &Bacteria, b2: &Bacteria, profiler: &mut Profiler) -> f6
     profiler.end("p1_and_p2");
     profiler.start("p1");
     while p1 < b1.count as usize {
-        //let n1 = b1.ti[p1];
         let t1 = b1.tv[p1];
         p1 += 1;
         vector_len1 += t1 * t1;
@@ -417,7 +413,6 @@ fn compare_bacteria(b1: &Bacteria, b2: &Bacteria, profiler: &mut Profiler) -> f6
     profiler.end("p1");
     profiler.start("p2");
     while p2 < b2.count as usize {
-        //let n2 = b2.ti[p2];
         let t2 = b2.tv[p2];
         p2 += 1;
         vector_len2 += t2 * t2;
