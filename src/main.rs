@@ -178,19 +178,24 @@ impl Bacteria {
             if p1p2_index == p1p2.len() && p3p4_index < p3p4.len(){
                 while p3p4_index < p3p4.len() {
                     let stochas = p3p4[p3p4_index].1 * total_div_2;
-                    self.tv.push((bc.vector[p3p4_index] as f64 - stochas) / stochas);
-                    self.ti.push(p3p4_index as i64);
-                    self.count += 1;
+                    if stochas > EPSILON {
+                        self.tv.push((bc.vector[p3p4_index] as f64 - stochas) / stochas);
+                        self.ti.push(p3p4_index as i64);
+                        self.count += 1;
+                    }
                     p3p4_index += 1;
                 }
                 break;
             } else if p3p4_index == p3p4.len() && p1p2_index < p1p2.len() {
                 while p1p2_index < p1p2.len() {
                     let stochas = p1p2[p1p2_index].1 * total_div_2;
-                    self.tv.push((bc.vector[p1p2_index] as f64 - stochas) / stochas);
-                    self.ti.push(p1p2_index as i64);
-                    self.count += 1;
+                    if stochas > EPSILON {
+                        self.tv.push((bc.vector[p1p2_index] as f64 - stochas) / stochas);
+                        self.ti.push(p1p2_index as i64);
+                        self.count += 1;
+                    }
                     p1p2_index += 1;
+
                 }
                 break;
             }
@@ -210,10 +215,13 @@ impl Bacteria {
                 p3p4_index += 1;
             }
 
-            self.tv.push((bc.vector[index] as f64 - stochastic) / stochastic);
-            self.ti.push(index as i64);
-            self.count += 1;
-            if p1p2_index == p1p2.len() && p3p4_index == p3p4.len() {break;}
+            if stochastic > EPSILON {
+                self.tv.push((bc.vector[index] as f64 - stochastic) / stochastic);
+                self.ti.push(index as i64);
+                self.count += 1;
+            }
+
+            if p1p2_index == p1p2.len() && p3p4_index == p3p4.len() { break; }
         }
 
         //for i in 0..self.count-1 {
