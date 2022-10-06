@@ -146,6 +146,7 @@ impl Bacteria {
         profiler.end("fill_arrays");
         profiler.start("calculate p1 p2 p3 p4");
 
+        // Calculate and fill the p1p2 array
         let mut p1p2: Vec<(usize, f64)> = vec![];
         for div_aa in &second_div_total {
             for mod_aa in &one_l_div_total {
@@ -153,6 +154,7 @@ impl Bacteria {
             }
         }
 
+        // Calculate and fill the 0304 array
         let mut p3p4: Vec<(usize, f64)> = vec![];
         for div_m1 in &one_l_div_total {
             for mod_m1 in &second_div_total {
@@ -166,50 +168,26 @@ impl Bacteria {
         self.tv = vec![];
         self.ti = vec![];
 
-        let mut p1p2_index = 0;
-        let mut p3p4_index = 0;
-        loop {
+        let mut p1p2_i = 0;
+        let mut p3p4_i = 0;
+
+        while p1p2_i < p1p2.len() && p3p4_i < p3p4.len() {
             let index: usize;
             let stochastic: f64;
 
-            if p1p2_index == p1p2.len() && p3p4_index < p3p4.len(){
-                while p3p4_index < p3p4.len() {
-                    let stochas = p3p4[p3p4_index].1 * total_div_2;
-                    if stochas > EPSILON {
-                        self.tv.push((bc.vector[p3p4[p3p4_index].0] as f64 - stochas) / stochas);
-                        self.ti.push(p3p4[p3p4_index].0 as i64);
-                        self.count += 1;
-                    }
-                    p3p4_index += 1;
-                }
-                break;
-            } else if p3p4_index == p3p4.len() && p1p2_index < p1p2.len() {
-                while p1p2_index < p1p2.len() {
-                    let stochas = p1p2[p1p2_index].1 * total_div_2;
-                    if stochas > EPSILON {
-                        self.tv.push((bc.vector[p1p2[p1p2_index].0] as f64 - stochas) / stochas);
-                        self.ti.push(p1p2[p1p2_index].0 as i64);
-                        self.count += 1;
-                    }
-                    p1p2_index += 1;
-
-                }
-                break;
-            }
-
-            if p1p2[p1p2_index].0 < p3p4[p3p4_index].0 {
-                stochastic = p1p2[p1p2_index].1 * total_div_2;
-                index = p1p2[p1p2_index].0;
-                p1p2_index += 1;
-            } else if p1p2[p1p2_index].0 > p3p4[p3p4_index].0 {
-                stochastic = p3p4[p3p4_index].1 * total_div_2;
-                index = p3p4[p3p4_index].0;
-                p3p4_index += 1;
+            if p1p2[p1p2_i].0 < p3p4[p3p4_i].0 {
+                stochastic = p1p2[p1p2_i].1 * total_div_2;
+                index = p1p2[p1p2_i].0;
+                p1p2_i += 1;
+            } else if p1p2[p1p2_i].0 > p3p4[p3p4_i].0 {
+                stochastic = p3p4[p3p4_i].1 * total_div_2;
+                index = p3p4[p3p4_i].0;
+                p3p4_i += 1;
             } else {
-                stochastic = (p1p2[p1p2_index].1 + p3p4[p3p4_index].1) * total_div_2;
-                index = p1p2[p1p2_index].0;
-                p1p2_index += 1;
-                p3p4_index += 1;
+                stochastic = (p1p2[p1p2_i].1 + p3p4[p3p4_i].1) * total_div_2;
+                index = p1p2[p1p2_i].0;
+                p1p2_i += 1;
+                p3p4_i += 1;
             }
 
             if stochastic > EPSILON {
@@ -217,110 +195,28 @@ impl Bacteria {
                 self.ti.push(index as i64);
                 self.count += 1;
             }
-
-            if p1p2_index == p1p2.len() && p3p4_index == p3p4.len() { break; }
         }
 
-        //for i in 0..self.count-1 {
-        //    if self.tv[i as usize] < 0.0 {continue}
-        //    println!("{}:{}", self.ti[i as usize], self.tv[i as usize]);
-        //}
-/*
-        // Loop Through all possible kmers
-        for i in 0..M {
-            let p1: f64 = second_div_total[i_div_aa_number];
-            let p2: f64 = one_l_div_total[i_mod_aa_number];
-            let p3: f64 = second_div_total[i_mod_m1];
-            let p4: f64 = one_l_div_total[i_div_m1];
-            let stochastic: f64 = (p1 * p2 + p3 * p4) * total_div_2;
-
-            if i_mod_aa_number == AA_NUMBER - 1 {
-                i_mod_aa_number = 0;
-                i_div_aa_number += 1;
-            } else {
-                i_mod_aa_number += 1;
-            }
-
-            if i_mod_m1 == M1 - 1 {
-                i_mod_m1 = 0;
-                i_div_m1 += 1;
-            } else {
-                i_mod_m1 += 1;
-            }
-
+        while p1p2_i < p1p2.len() {
+            let stochastic = p1p2[p1p2_i].1 * total_div_2;
             if stochastic > EPSILON {
-                self.tv.push((bc.vector[i] as f64 - stochastic) / stochastic);
-                self.ti.push(i as i64);
+                self.tv.push((bc.vector[p1p2[p1p2_i].0] as f64 - stochastic) / stochastic);
+                self.ti.push(p1p2[p1p2_i].0 as i64);
                 self.count += 1;
             }
+            p1p2_i += 1;
         }
 
-
- */
-        //*/
-
-        /*
-        // Initialise variables
-        let mut i_mod_aa_number: usize = 0;
-        let mut i_div_aa_number: usize = 0;
-        let mut i_mod_m1: usize = 0;
-        let mut i_div_m1: usize = 0;
-
-        // Fill the one_l_div_total array
-        let mut one_l_div_total = [0.0; AA_NUMBER];
-        for i in 0..AA_NUMBER {
-            one_l_div_total[i] = bc.one_l[i] as f64 / bc.total_l as f64;
-        }
-
-        // Fill the second_div_total array
-        let mut second_div_total = vec![0.0; M1].into_boxed_slice();
-        for i in 0..M1 {
-            second_div_total[i] = bc.second[i] as f64 / total_plus_complement;
-        }
-
-        // Initialise variables
-        //let mut t: Box<[f64]> = vec![0.0; M].into_boxed_slice();
-
-        profiler.end("fill_arrays");
-        profiler.start("calculate_t");
-
-        self.tv = vec![];
-        self.ti = vec![];
-
-        // Loop Through all possible kmers
-        for i in 0..M {
-            let p1: f64 = second_div_total[i_div_aa_number];
-            let p2: f64 = one_l_div_total[i_mod_aa_number];
-            let p3: f64 = second_div_total[i_mod_m1];
-            let p4: f64 = one_l_div_total[i_div_m1];
-            let stochastic: f64 = (p1 * p2 + p3 * p4) * total_div_2;
-            //leet
-
-            if i_mod_aa_number == AA_NUMBER - 1 {
-                i_mod_aa_number = 0;
-                i_div_aa_number += 1;
-            }
-            else {
-                i_mod_aa_number += 1;
-            }
-
-            if i_mod_m1 == M1 - 1 {
-                i_mod_m1 = 0;
-                i_div_m1 += 1;
-            }
-            else {
-                i_mod_m1 += 1;
-            }
-
+        while p3p4_i < p3p4.len() {
+            let stochastic = p3p4[p3p4_i].1 * total_div_2;
             if stochastic > EPSILON {
-                //t[i] = (bc.vector[i] as f64 - stochastic) / stochastic;
-                self.tv.push((bc.vector[i] as f64 - stochastic) / stochastic);
-                //println!("{}:{} + {}", i, p1 * p2, p3 * p4);
-                self.ti.push(i as i64);
+                self.tv.push((bc.vector[p3p4[p3p4_i].0] as f64 - stochastic) / stochastic);
+                self.ti.push(p3p4[p3p4_i].0 as i64);
                 self.count += 1;
             }
+            p3p4_i += 1;
         }
-        */
+
         profiler.end("calculate_t");
     }
 

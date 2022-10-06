@@ -17,7 +17,7 @@ pub mod bad_profiler {
     impl Profiler {
         pub fn new() -> Profiler {
             Profiler {
-                enabled: true,
+                enabled: false,
                 indent: 0,
                 name: vec![],
                 start: vec![],
