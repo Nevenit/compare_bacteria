@@ -196,7 +196,7 @@ impl Bacteria {
                 self.count += 1;
             }
         }
-        //test
+
         while p1p2_i < p1p2.len() {
             let stochastic = p1p2[p1p2_i].1 * total_div_2;
             if stochastic > EPSILON {
