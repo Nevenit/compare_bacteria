@@ -1,7 +1,6 @@
 mod bad_profiler;
 use crate::bad_profiler::bad_profiler::Profiler;
 
-use rustc_hash::FxHashMap;
 use std::fs;
 use std::str;
 use std::env;
@@ -121,13 +120,6 @@ impl Bacteria {
         // Initialise variables
         let total_plus_complement: f64 = bc.total as f64 + bc.complement as f64 ;
         let total_div_2: f64 = bc.total as f64 * 0.5;
-
-        ///*
-
-        let mut i_mod_aa_number: usize = 0;
-        let mut i_div_aa_number: usize = 0;
-        let mut i_mod_m1: usize = 0;
-        let mut i_div_m1: usize = 0;
 
         // Fill the one_l_div_total array
         let mut one_l_div_total: Vec<(usize, f64)> = vec![];
@@ -323,7 +315,7 @@ It starts by initialising a new class for each bacteria, reading the files, load
 and calculating the statistics. Then for every bacteria class it compares it with all of the
 other bacteria and prints the result
  */
-fn compare_all_bacteria(program_vars: &mut Vars, profiler: &mut Profiler) {
+fn compare_all_bacteria(program_vars: &mut Vars, profiler: &mut Profiler) -> String {
     profiler.start("init_bacteria");
 
     let mut bacteria_array = vec![];
@@ -350,18 +342,41 @@ fn compare_all_bacteria(program_vars: &mut Vars, profiler: &mut Profiler) {
     profiler.end("init_bacteria");
     profiler.start("compare_bacteria");
 
+    let mut output = String::new();
+
     // Loop through every bacteria
     for i in 0..program_vars.bacteria_count {
         // This skips the comparisons that have already been done
         for j in i+1..program_vars.bacteria_count {
-            print!("{} {} -> ", i, j);
 
+            output += &format!("{} {} -> ", i, j).to_string();
             // Calculate and print the correlation between the two bacteria
             let correlation = compare_bacteria(&bacteria_array[i as usize], &bacteria_array[j as usize], profiler);
-            println!("{:.20}", correlation);
+
+            output += &format!("{:.20}\n", correlation).to_string();
         }
     }
     profiler.end("compare_bacteria");
+
+    print!("{}", output);
+
+    return output;
+}
+
+fn verify_output(mut output: String) {
+    let mut file_contents = fs::read_to_string("validation.txt").unwrap();
+
+    // Remove new lines because different operating systems use different line endings
+    output = output.replace("\r\n", "");
+    file_contents = file_contents.replace("\r\n", "");
+    output = output.replace('\n', "");
+    file_contents = file_contents.replace('\n', "");
+
+    if output == file_contents {
+        println!("Validation successful");
+    } else {
+        println!("Validation failed");
+    }
 }
 
 fn main() {
@@ -386,7 +401,10 @@ fn main() {
     read_input_file(&args[1], &mut program_vars);
 
     // Analise each bacteria file and compare them
-    compare_all_bacteria(&mut program_vars, &mut profiler);
+    let output = compare_all_bacteria(&mut program_vars, &mut profiler);
+
+    // Verify output is correct, used to make sure functionality isnt broken
+    verify_output(output);
 
     profiler.end("main");
 
