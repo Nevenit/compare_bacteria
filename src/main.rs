@@ -269,7 +269,7 @@ fn compare_bacteria(b1: &Bacteria, b2: &Bacteria, profiler: &mut Profiler) -> f6
     return correlation / (vector_len1.sqrt() * vector_len2.sqrt());
 }
 
-fn compare_all_bacteria(program_vars: &mut Vars, profiler: &mut Profiler) {
+fn compare_all_bacteria(program_vars: &mut Vars, profiler: &mut Profiler) -> String {
     profiler.start("init_bacteria");
     let mut bacteria_array = vec![];
 
@@ -287,14 +287,34 @@ fn compare_all_bacteria(program_vars: &mut Vars, profiler: &mut Profiler) {
     profiler.end("init_bacteria");
 
     profiler.start("compare_bacteria");
+    let mut output = String::new();
     for i in 0..program_vars.bacteria_count {
         for j in i+1..program_vars.bacteria_count {
             print!("{} {} -> ", i, j);
+            output += &format!("{} {} -> ", i, j).to_string();
             let correlation = compare_bacteria(&bacteria_array[i as usize], &bacteria_array[j as usize], profiler);
+            output += &format!("{:.20}\n", correlation).to_string();
             println!("{:.20}", correlation);
         }
     }
     profiler.end("compare_bacteria");
+    return output;
+}
+
+fn verify_output(mut output: String) {
+    let mut file_contents = fs::read_to_string("validation.txt").unwrap();
+
+    // Remove new lines because different operating systems use different line endings
+    output = output.replace("\r\n", "");
+    file_contents = file_contents.replace("\r\n", "");
+    output = output.replace('\n', "");
+    file_contents = file_contents.replace('\n', "");
+
+    if output == file_contents {
+        println!("Validation successful");
+    } else {
+        println!("Validation failed");
+    }
 }
 
 fn main() {
@@ -319,7 +339,12 @@ fn main() {
 
     let start_time = Instant::now();
     read_input_file(&args[1], &mut program_vars);
-    compare_all_bacteria(&mut program_vars, &mut profiler);
+
+    // Analise each bacteria file and compare them
+    let output = compare_all_bacteria(&mut program_vars, &mut profiler);
+
+    // Verify output is correct, used to make sure functionality isnt broken
+    verify_output(output);
 
     profiler.end("main");
 
