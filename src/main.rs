@@ -7,6 +7,8 @@ use std::fs;
 use std::str;
 use std::env;
 use std::time::{Instant, SystemTime};
+use std::sync::{Arc, Mutex};
+use std::thread;
 
 const CODE: [i32; 26] = [0, 2, 1, 2, 3, 4, 5, 6, 7, -1, 8, 9, 10, 11, -1, 12, 13, 14, 15, 16, 1, 17, 18, 5, 19, 3];
 const LEN: usize = 6;
@@ -54,7 +56,7 @@ pub struct BacteriaCounters {
 }
 
 impl Bacteria {
-    pub fn init(&mut self, file: &str, profiler: &mut Profiler) {
+    pub fn init(&mut self, file: &str, profiler: &mut Profiler, thread_count: usize) {
         profiler.start("read_file");
         let bacteria_file = fs::read_to_string(&file).unwrap();
         let file_bytes = bacteria_file.as_bytes();
@@ -107,12 +109,12 @@ impl Bacteria {
         profiler.start("fill_arrays");
         let total_plus_complement: f64 = bc.total as f64 + bc.complement as f64 ;
         let total_div_2: f64 = bc.total as f64 * 0.5;
-        let mut i_mod_aa_number: usize = 0;
-        let mut i_div_aa_number: usize = 0;
-        let mut i_mod_m1: usize = 0;
-        let mut i_div_m1: usize = 0;
+        //let mut i_mod_aa_number: usize = 0;
+        //let mut i_div_aa_number: usize = 0;
+        //let mut i_mod_m1: usize = 0;
+        //let mut i_div_m1: usize = 0;
 
-        let mut one_l_div_total = [0.0; AA_NUMBER];
+        let mut one_l_div_total =[0.0; AA_NUMBER];
         for i in 0..AA_NUMBER {
             one_l_div_total[i] = bc.one_l[i] as f64 / bc.total_l as f64;
         }
@@ -123,12 +125,117 @@ impl Bacteria {
         }
 
         self.count = 0;
-        let mut t: Box<[f64]> = vec![0.0; M].into_boxed_slice();
+        let  t= Arc::new(Mutex::new(vec![0.0; M].into_boxed_slice()));
         profiler.end("fill_arrays");
 
         profiler.start("calculate_t");
+
+        let mut index_bounds: Vec<(usize, usize)> = vec![(0,0); thread_count as usize];
+        for i in 0..thread_count {
+            let starting_index: usize = M / thread_count * i;
+
+            let ending_index: usize;
+            if i == thread_count - 1 {
+                ending_index = M;
+            } else {
+                ending_index = M / thread_count * (i + 1);
+            }
+
+            index_bounds[i] = (starting_index, ending_index);
+            println!("s: {}  e:{}", starting_index, ending_index)
+        }
+
+        let mut t = vec![];
+        for i in 0..thread_count {
+            t.push(Arc::new(Mutex::new(vec![0.0; index_bounds[i].1 - index_bounds[i].0].into_boxed_slice())));
+        }
+
+        let thread_ids = Arc::new(Mutex::new(0));
+        let one_l_div_total = Arc::new(one_l_div_total);
+        let second_div_total = Arc::new(second_div_total);
+        let bc_vector = Arc::new(bc.vector);
+        let count = Arc::new(Mutex::new(0));
+        let arc_index_bounds = Arc::new(index_bounds.clone());
+
+        let mut handles = vec![];
+
+        for ti in 0..thread_count {
+
+            let thread_ids = Arc::clone(&thread_ids);
+            let _second_div_total = Arc::clone(&second_div_total);
+            let _one_l_div_total = Arc::clone(&one_l_div_total);
+            let _bc_vector = Arc::clone(&bc_vector);
+            let count = Arc::clone(&count);
+            let _index_bounds = Arc::clone(&Arc::new(arc_index_bounds[ti]));
+            let _t = Arc::clone(&t[ti]);
+
+            let handle = thread::spawn(move || {
+                let mut thread_id = thread_ids.lock().unwrap();
+                let my_id = thread_id.clone();
+                *thread_id += 1;
+                drop(thread_id);
+                let mut counter = 0;
+                let mut __t = _t.lock().unwrap();
+
+
+                let starting_index: usize = _index_bounds.0;
+                let mut i_mod_aa_number: usize = starting_index % AA_NUMBER;
+                let mut i_div_aa_number: usize = starting_index / AA_NUMBER;
+                let mut i_mod_m1: usize = starting_index % M1;
+                let mut i_div_m1: usize = starting_index / M1;
+                let ending_index: usize = _index_bounds.1;
+                println!("id: {}  {} {} {} {}",my_id, i_mod_aa_number, i_div_aa_number, i_mod_m1, i_div_m1);
+
+                println!("id: {}  start: {}  end: {}",my_id, starting_index, ending_index);
+                for i in starting_index..ending_index {
+                    let p1: f64 = _second_div_total[i_div_aa_number];
+                    let p2: f64 = _one_l_div_total[i_mod_aa_number];
+                    let p3: f64 = _second_div_total[i_mod_m1];
+                    let p4: f64 = _one_l_div_total[i_div_m1];
+                    let stochastic: f64 = (p1 * p2 + p3 * p4) * total_div_2;
+
+                    if i_mod_aa_number == AA_NUMBER - 1 {
+                        i_mod_aa_number = 0;
+                        i_div_aa_number += 1;
+                    }
+                    else {
+                        i_mod_aa_number += 1;
+                    }
+
+                    if i_mod_m1 == M1 - 1 {
+                        i_mod_m1 = 0;
+                        i_div_m1 += 1;
+                    }
+                    else {
+                        i_mod_m1 += 1;
+                    }
+
+                    if stochastic > EPSILON {
+                        __t[i - starting_index] = (_bc_vector[i] as f64 - stochastic) / stochastic;
+                        counter += 1;
+                    } else {
+                        __t[i - starting_index] = 0.0;
+                    }
+                }
+
+                let mut _count = count.lock().unwrap();
+                *_count += counter;
+                drop(_count);
+
+                //*thread_id += 1;
+            });
+            handles.push(handle);
+        }
+
+        for handle in handles {
+            handle.join().unwrap();
+        }
+
+        self.count = *count.lock().unwrap();
+        //let t = t.lock().unwrap();
+
+        /*
         for i in 0..M {
-            //profiler.start("counters");
             let p1: f64 = second_div_total[i_div_aa_number];
             let p2: f64 = one_l_div_total[i_mod_aa_number];
             let p3: f64 = second_div_total[i_mod_m1];
@@ -150,16 +257,15 @@ impl Bacteria {
             else {
                 i_mod_m1 += 1;
             }
-            //profiler.end("counters");
-            //profiler.start("stochastc");
+
             if stochastic > EPSILON {
                 t[i] = (bc.vector[i] as f64 - stochastic) / stochastic;
                 self.count += 1;
             } else {
                 t[i] = 0.0;
             }
-            //profiler.end("stochastc");
         }
+         */
         profiler.end("calculate_t");
 
         profiler.start("calculate_tv_and_ti");
@@ -167,6 +273,20 @@ impl Bacteria {
         self.ti = vec![0; self.count as usize].into_boxed_slice();
 
         let mut pos = 0;
+        let mut index_counter: usize = 0;
+        for i in 0..thread_count {
+            let _t = t[i].lock().unwrap();
+            for j in 0..index_bounds[i].1 - index_bounds[i].0 {
+                if _t[j] != 0.0 {
+                    self.tv[pos] = _t[j];
+                    self.ti[pos] = (index_counter + j) as i64;
+                    pos += 1;
+                }
+            }
+            index_counter += index_bounds[i].1 - index_bounds[i].0;
+        }
+
+        /*
         for i in 0..M {
             if t[i] != 0.0 {
                 self.tv[pos] = t[i];
@@ -174,6 +294,8 @@ impl Bacteria {
                 pos += 1;
             }
         }
+
+         */
         profiler.end("calculate_tv_and_ti");
 
     }
@@ -281,7 +403,7 @@ fn compare_all_bacteria(program_vars: &mut Vars, profiler: &mut Profiler) -> Str
             ti: vec![].into_boxed_slice()
         });
         profiler.start(format!("init_bacteria {}", i).as_str());
-        bacteria_array[i as usize].init(&program_vars.bacteria_path[i as usize], profiler);
+        bacteria_array[i as usize].init(&program_vars.bacteria_path[i as usize], profiler, 12);
         profiler.end(format!("init_bacteria {}", i).as_str());
     }
     profiler.end("init_bacteria");
@@ -315,6 +437,8 @@ fn verify_output(mut output: String) {
     } else {
         println!("Validation failed");
     }
+    fs::write("fucked.txt", output);
+    fs::write("notFucked.txt", file_contents);
 }
 
 fn main() {
