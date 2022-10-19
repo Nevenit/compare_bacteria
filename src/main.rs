@@ -9,6 +9,8 @@ use std::env;
 use std::time::Instant;
 use std::sync::{Arc, Mutex};
 use std::thread;
+use threadpool::ThreadPool;
+use std::sync::mpsc::channel;
 
 const CODE: [i32; 26] = [0, 2, 1, 2, 3, 4, 5, 6, 7, -1, 8, 9, 10, 11, -1, 12, 13, 14, 15, 16, 1, 17, 18, 5, 19, 3];
 const LEN: usize = 6;
@@ -373,14 +375,14 @@ fn read_input_file(file: &str, program_vars: &mut Vars) {
     }
 }
 
-fn compare_bacteria(b1: &Bacteria, b2: &Bacteria, profiler: &mut Profiler) -> f64 {
+fn compare_bacteria(b1: &Bacteria, b2: &Bacteria, /*profiler: &mut Profiler*/) -> f64 {
     let mut correlation: f64 = 0.0;
     let mut vector_len1: f64 = 0.0;
     let mut vector_len2: f64 = 0.0;
     let mut p1: usize = 0;
     let mut p2: usize = 0;
 
-    profiler.start("p1_and_p2");
+    //profiler.start("p1_and_p2");
     while p1 < b1.count as usize && p2 < b2.count as usize {
         let _n1 = b1.ti[p1];
         let _n2 = b2.ti[p2];
@@ -403,27 +405,37 @@ fn compare_bacteria(b1: &Bacteria, b2: &Bacteria, profiler: &mut Profiler) -> f6
             correlation += t1 * t2;
         }
     }
-    profiler.end("p1_and_p2");
-    profiler.start("p1");
+    //profiler.end("p1_and_p2");
+    //profiler.start("p1");
     while p1 < b1.count as usize {
-        let n1 = b1.ti[p1];
         let t1 = b1.tv[p1];
         p1 += 1;
         vector_len1 += t1 * t1;
     }
-    profiler.end("p1");
-    profiler.start("p2");
+    //profiler.end("p1");
+    //profiler.start("p2");
     while p2 < b2.count as usize {
-        let n2 = b2.ti[p2];
         let t2 = b2.tv[p2];
         p2 += 1;
         vector_len2 += t2 * t2;
     }
-    profiler.end("p2");
+    //profiler.end("p2");
     return correlation / (vector_len1.sqrt() * vector_len2.sqrt());
 }
 
-fn compare_all_bacteria(program_vars: &mut Vars, profiler: &mut Profiler) -> String {
+fn triangular_number(n: usize) -> usize{
+    let mut nn = n;
+    let mut i = n;
+    loop {
+        if i == 0 {return 0}
+        if i == 1 {return nn}
+        i -= 1;
+        nn += i;
+    }
+}
+
+
+fn compare_all_bacteria(program_vars: &mut Vars, profiler: &mut Profiler, thread_count: usize) -> String {
     profiler.start("init_bacteria");
     let mut bacteria_array = vec![];
 
@@ -435,23 +447,55 @@ fn compare_all_bacteria(program_vars: &mut Vars, profiler: &mut Profiler) -> Str
             ti: vec![].into_boxed_slice()
         });
         profiler.start(format!("init_bacteria {}", i).as_str());
-        bacteria_array[i as usize].init(&program_vars.bacteria_path[i as usize], profiler, 12);
+        bacteria_array[i as usize].init(&program_vars.bacteria_path[i as usize], profiler, thread_count);
         profiler.end(format!("init_bacteria {}", i).as_str());
     }
     profiler.end("init_bacteria");
 
     profiler.start("compare_bacteria");
-    //let mut output = String::new();
-    for i in 0..program_vars.bacteria_count {
-        for j in i+1..program_vars.bacteria_count {
-            print!("{} {} -> ", i, j);
-            //output += &format!("{} {} -> ", i, j).to_string();
-            let correlation = compare_bacteria(&bacteria_array[i as usize], &bacteria_array[j as usize], profiler);
-            //output += &format!("{:.20}\n", correlation).to_string();
-            println!("{:.20}", correlation);
+
+    let mut bacteria_array_arc = vec![];
+    for bacteria in bacteria_array {
+        bacteria_array_arc.push(Arc::new(bacteria));
+    }
+
+    let mut output = String::new();
+
+    let pool = ThreadPool::new(thread_count);
+    let result_array_arc = Arc::new(Mutex::new(vec![String::new(); ((program_vars.bacteria_count.pow(2) - program_vars.bacteria_count) / 2) as usize].into_boxed_slice()));
+    let (tx, rx) = channel();
+
+    for i in 0..program_vars.bacteria_count as usize {
+        for j in i+1..program_vars.bacteria_count as usize {
+            //print!("{} {} -> ", i, j);
+            let b1 = Arc::clone(&bacteria_array_arc[i as usize]);
+            let b2 = Arc::clone(&bacteria_array_arc[j as usize]);
+            let result_array = Arc::clone(&result_array_arc);
+            let _i = i.clone();
+            let _j = j.clone();
+            let bacteria_count = program_vars.bacteria_count.clone();
+            let tx = tx.clone();
+            let compared_indexes = format!("{} {} ->", i, j);
+            pool.execute(move || {
+                let correlation = compare_bacteria(&b1, &b2/*, profiler*/);
+                let mut result_array_lock = result_array.lock().unwrap();
+                result_array_lock[((_i * (bacteria_count as usize - 1)) - triangular_number(_i as usize)) + _j - 1] = format!("{} {:.20}\n", compared_indexes, correlation);
+                drop(result_array_lock);
+                tx.send(1);
+            });
         }
     }
+
+    for _ in 0..((program_vars.bacteria_count.pow(2) - program_vars.bacteria_count) / 2) {
+        rx.recv().unwrap();
+    }
+
+    let results = result_array_arc.clone().lock().unwrap().clone();
+    for i in 0..results.len() {
+        output.push_str(&results[i])
+    }
     profiler.end("compare_bacteria");
+    print!("{}", output);
     return output;
 }
 
@@ -497,7 +541,7 @@ fn main() {
     read_input_file(&args[1], &mut program_vars);
 
     // Analise each bacteria file and compare them
-    let output = compare_all_bacteria(&mut program_vars, &mut profiler);
+    let output = compare_all_bacteria(&mut program_vars, &mut profiler, 12);
 
     // Verify output is correct, used to make sure functionality isnt broken
     verify_output(output);

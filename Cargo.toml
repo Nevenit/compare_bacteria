@@ -12,6 +12,7 @@ debug = true
 rustc-hash = "1.1.0"
 profiling = "1.0.6"
 colored = "2.0.0"
+threadpool = "1.8.1"
 
 [features]
 profile-with-superluminal = ["profiling/profile-with-superluminal"]
