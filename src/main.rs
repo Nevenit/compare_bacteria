@@ -441,13 +441,13 @@ fn compare_all_bacteria(program_vars: &mut Vars, profiler: &mut Profiler) -> Str
     profiler.end("init_bacteria");
 
     profiler.start("compare_bacteria");
-    let mut output = String::new();
+    //let mut output = String::new();
     for i in 0..program_vars.bacteria_count {
         for j in i+1..program_vars.bacteria_count {
             print!("{} {} -> ", i, j);
-            output += &format!("{} {} -> ", i, j).to_string();
+            //output += &format!("{} {} -> ", i, j).to_string();
             let correlation = compare_bacteria(&bacteria_array[i as usize], &bacteria_array[j as usize], profiler);
-            output += &format!("{:.20}\n", correlation).to_string();
+            //output += &format!("{:.20}\n", correlation).to_string();
             println!("{:.20}", correlation);
         }
     }
