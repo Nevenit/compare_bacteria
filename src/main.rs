@@ -48,9 +48,9 @@ pub struct Bacteria {
 }
 
 pub struct BacteriaCounters {
-    vector: Box<[i64]>,
-    second: Box<[i64]>,
-    one_l: Box<[i64]>,
+    vector: Box<[i32]>,
+    second: Box<[i32]>,
+    one_l: Box<[i32]>,
     indexes: i64,
     total: i64,
     total_l: i64,
@@ -58,13 +58,21 @@ pub struct BacteriaCounters {
 }
 
 impl Bacteria {
-    pub fn init(&mut self, file: &str, profiler: &mut Profiler, thread_count: usize) {
-        profiler.start("read_file");
-        let bacteria_file = fs::read_to_string(&file).unwrap();
-        let file_bytes = bacteria_file.as_bytes();
-        profiler.end("read_file");
+    // This function initialises the bacteria struct, reads the file and calculates the kmers
+    pub fn init(&mut self, file: &str) {
+        //profiler.start("read_file");
 
-        profiler.start("init_counters");
+        // Read the file
+        let bacteria_file = fs::read_to_string(&file).unwrap();
+
+        // convert it to bytes
+        let file_bytes = bacteria_file.as_bytes();
+
+        //profiler.end("read_file");
+
+        //profiler.start("init_counters");
+
+        // Initialise the BacteriaCounters which is used as the private variables for the struct
         let mut bc = BacteriaCounters {
             vector: vec![0; M].into_boxed_slice(),
             second: vec![0; M1].into_boxed_slice(),
@@ -74,264 +82,147 @@ impl Bacteria {
             total_l: 0,
             complement: 0
         };
-        profiler.end("init_counters");
+        //profiler.end("init_counters");
 
-        profiler.start("extract_kmers");
+        //profiler.start("extract_kmers");
+
+        // Loop through all bytes of the file
         let mut i = 0;
         while i < file_bytes.len(){
             if file_bytes[i] as char == '>' {
-                profiler.start("compute_buffer");
+                //profiler.start("compute_buffer");
+
+                // Skip all bytes until new lines because this is a comment line
                 while file_bytes[i] as char != '\n' {
                     i += 1;
                 }
 
+                // Initialise the buffer array
                 let mut buffer: [u8; LEN - 1] = [0 as u8; LEN - 1];
 
+                // Loop for the length of our kmer and add the bytes to the buffer
                 let mut j = 0;
                 while j < LEN - 1 {
                     i += 1;
                     buffer[j] = file_bytes[i];
                     j += 1;
                 }
-                profiler.end("compute_buffer");
-                profiler.start("init_buffer");
+
+                //profiler.end("compute_buffer");
+                //profiler.start("init_buffer");
+
+                // Add buffer to vectors
                 self.init_buffer(&mut bc, buffer);
-                profiler.end("init_buffer");
-            }
+                //profiler.end("init_buffer");
+            }// If char isn't new line or end of file
             else if file_bytes[i] as char != '\n' && file_bytes[i] != 13 {
-                profiler.start("cont_buffer");
+                //profiler.start("cont_buffer");
+
+                // Add char to kmers
                 self.cont_buffer(&mut bc, file_bytes[i] as char);
-                profiler.end("cont_buffer");
+                //profiler.end("cont_buffer");
             }
             i += 1;
         }
-        profiler.end("extract_kmers");
+        //profiler.end("extract_kmers");
+        //profiler.start("fill_arrays");
 
-        profiler.start("fill_arrays");
+        // Initialise variables
         let total_plus_complement: f64 = bc.total as f64 + bc.complement as f64 ;
         let total_div_2: f64 = bc.total as f64 * 0.5;
 
-        let mut one_l_div_total =[0.0; AA_NUMBER];
+        // Fill the one_l_div_total array
+        let mut one_l_div_total: Vec<(usize, f64)> = vec![];
         for i in 0..AA_NUMBER {
-            one_l_div_total[i] = bc.one_l[i] as f64 / bc.total_l as f64;
+            if bc.one_l[i] == 0 {continue}
+            one_l_div_total.push((i, bc.one_l[i] as f64 / bc.total_l as f64));
         }
 
-        let mut second_div_total = vec![0.0; M1].into_boxed_slice();
+        // Fill the second_div_total array
+        let mut second_div_total: Vec<(usize, f64)> = vec![];
         for i in 0..M1 {
-            second_div_total[i] = bc.second[i] as f64 / total_plus_complement;
+            if bc.second[i] == 0 {continue}
+            second_div_total.push((i, bc.second[i] as f64 / total_plus_complement));
         }
 
-        profiler.end("fill_arrays");
+        //profiler.end("fill_arrays");
+        //profiler.start("calculate p1 p2 p3 p4");
 
-        profiler.start("calculate_t");
+        // Calculate and fill the p1p2 array
+        let mut p1p2: Vec<(usize, f64)> = vec![];
+        for div_aa in &second_div_total {
+            for mod_aa in &one_l_div_total {
+                p1p2.push((div_aa.0 * AA_NUMBER + mod_aa.0, div_aa.1 * mod_aa.1))
+            }
+        }
 
-        // Calculate the starting and ending index for each thread
-        // we have to do that before starting the threads because we need this information
-        // to declare the array length used for the thread output
-        let mut index_bounds_arc= vec![];
-        for i in 0..thread_count {
-            let starting_index: usize = M / thread_count * i;
+        // Calculate and fill the 0304 array
+        let mut p3p4: Vec<(usize, f64)> = vec![];
+        for div_m1 in &one_l_div_total {
+            for mod_m1 in &second_div_total {
+                p3p4.push((div_m1.0 * M1 + mod_m1.0, div_m1.1 * mod_m1.1))
+            }
+        }
 
-            let ending_index: usize;
-            if i == thread_count - 1 {
-                ending_index = M;
+        //profiler.end("calculate p1 p2 p3 p4");
+        //profiler.start("calculate_t");
+
+        let mut _tv = vec![];
+        let mut _ti = vec![];
+
+        let mut p1p2_i = 0;
+        let mut p3p4_i = 0;
+
+        while p1p2_i < p1p2.len() && p3p4_i < p3p4.len() {
+            let index: usize;
+            let stochastic: f64;
+
+            if p1p2[p1p2_i].0 < p3p4[p3p4_i].0 {
+                stochastic = p1p2[p1p2_i].1 * total_div_2;
+                index = p1p2[p1p2_i].0;
+                p1p2_i += 1;
+            } else if p1p2[p1p2_i].0 > p3p4[p3p4_i].0 {
+                stochastic = p3p4[p3p4_i].1 * total_div_2;
+                index = p3p4[p3p4_i].0;
+                p3p4_i += 1;
             } else {
-                ending_index = M / thread_count * (i + 1);
+                stochastic = (p1p2[p1p2_i].1 + p3p4[p3p4_i].1) * total_div_2;
+                index = p1p2[p1p2_i].0;
+                p1p2_i += 1;
+                p3p4_i += 1;
             }
-            index_bounds_arc.push(Arc::new((starting_index, ending_index)));
-        }
 
-        // These next few lines convert the variables needed in each thread to a thread safe pointer
-        //let thread_id_arc_pointer = Arc::new(Mutex::new(0));
-        let count_arc = Arc::new(Mutex::new(0));
-        let one_l_div_total_arc = Arc::new(one_l_div_total);
-        let second_div_total_arc = Arc::new(second_div_total);
-        let bc_vector_arc = Arc::new(bc.vector);
-        //let arc_index_bounds_arc = Arc::new(index_bounds.clone());
-        let mut t_arc = vec![];
-        for i in 0..thread_count {
-            t_arc.push(Arc::new(Mutex::new(vec![0.0; index_bounds_arc[i].1 - index_bounds_arc[i].0].into_boxed_slice())));
-        }
-
-        let mut handles = vec![];
-
-        for thread_index in 0..thread_count {
-            // Create a copy of the thread safe pointer for each thread
-            //let thread_id = Arc::clone(&thread_id_arc_pointer);
-            let _count = Arc::clone(&count_arc);
-            let _one_l_div_total = Arc::clone(&one_l_div_total_arc);
-            let _second_div_total = Arc::clone(&second_div_total_arc);
-            let _bc_vector = Arc::clone(&bc_vector_arc);
-            let _index_bounds = Arc::clone(&index_bounds_arc[thread_index]);
-            let _t = Arc::clone(&t_arc[thread_index]);
-
-            let handle = thread::spawn(move || {
-                //let mut current_thread_id = thread_id.lock().unwrap();
-                //let my_id = current_thread_id.clone();
-                //*current_thread_id += 1;
-                //drop(current_thread_id);
-                //let my_id = thread_index;
-
-                let mut counter = 0;
-
-                // Because only this thread is using this lock there is no performance impact
-                let mut t_lock = _t.lock().unwrap();
-
-
-                let starting_index: usize = _index_bounds.0;
-                let mut i_mod_aa_number: usize = starting_index % AA_NUMBER;
-                let mut i_div_aa_number: usize = starting_index / AA_NUMBER;
-                let mut i_mod_m1: usize = starting_index % M1;
-                let mut i_div_m1: usize = starting_index / M1;
-                let ending_index: usize = _index_bounds.1;
-                //println!("id: {}  {} {} {} {}",my_id, i_mod_aa_number, i_div_aa_number, i_mod_m1, i_div_m1);
-
-                //println!("id: {}  start: {}  end: {}",my_id, starting_index, ending_index);
-                for i in starting_index..ending_index {
-                    let p1: f64 = _second_div_total[i_div_aa_number];
-                    let p2: f64 = _one_l_div_total[i_mod_aa_number];
-                    let p3: f64 = _second_div_total[i_mod_m1];
-                    let p4: f64 = _one_l_div_total[i_div_m1];
-                    let stochastic: f64 = (p1 * p2 + p3 * p4) * total_div_2;
-
-                    if i_mod_aa_number == AA_NUMBER - 1 {
-                        i_mod_aa_number = 0;
-                        i_div_aa_number += 1;
-                    }
-                    else {
-                        i_mod_aa_number += 1;
-                    }
-
-                    if i_mod_m1 == M1 - 1 {
-                        i_mod_m1 = 0;
-                        i_div_m1 += 1;
-                    }
-                    else {
-                        i_mod_m1 += 1;
-                    }
-
-                    if stochastic > EPSILON {
-                        t_lock[i - starting_index] = (_bc_vector[i] as f64 - stochastic) / stochastic;
-                        counter += 1;
-                    } else {
-                        t_lock[i - starting_index] = 0.0;
-                    }
-                }
-
-                let mut count_lock = _count.lock().unwrap();
-                *count_lock += counter;
-                drop(count_lock);
-
-                //*thread_id += 1;
-            });
-            handles.push(handle);
-        }
-
-        // Wait for all threads to finish
-        for handle in handles {
-            handle.join().unwrap();
-        }
-
-        self.count = *count_arc.lock().unwrap();
-
-        profiler.end("calculate_t");
-
-        profiler.start("calculate_tv_and_ti");
-        //let thread_id_arc = Arc::new(Mutex::new(0));
-
-        // Because we dont know the distribution of values between threads we have to assume the worst
-        // and give each thread an array with the length of count
-
-        let mut thread_tv_arc = vec![];
-        let mut thread_ti_arc = vec![];
-        for i in 0..thread_count {
-            thread_tv_arc.push(Arc::new(Mutex::new(vec![0.0; self.count].into_boxed_slice())));
-            thread_ti_arc.push(Arc::new(Mutex::new(vec![0 as i64; self.count].into_boxed_slice())));
-        }
-
-        let mut handles = vec![];
-
-        for thread_index in 0..thread_count {
-            let _thread_t = Arc::clone(&t_arc[thread_index]);
-            let _thread_tv = Arc::clone(&thread_tv_arc[thread_index]);
-            let _thread_ti = Arc::clone(&thread_ti_arc[thread_index]);
-            let _thread_index_bounds = Arc::clone(&index_bounds_arc[thread_index]);
-            let _thread_array_length = Arc::new(self.count);
-
-            let handle = thread::spawn(move || {
-                //let my_id = thread_index;
-                let t_lock = _thread_t.lock().unwrap();
-                let mut tv_lock = _thread_tv.lock().unwrap();
-                let mut ti_lock = _thread_ti.lock().unwrap();
-
-                let mut pos = 0;
-                for i in 0.._thread_index_bounds.1 - _thread_index_bounds.0 {
-                    if t_lock[i] != 0.0 {
-                        tv_lock[pos] = t_lock[i];
-                        ti_lock[pos] = (_thread_index_bounds.0 + i) as i64;
-                        pos += 1;
-                    }
-                }
-            });
-
-            handles.push(handle);
-        }
-
-        for handle in handles {
-            handle.join().unwrap();
-        }
-
-        self.tv = vec![0.0; self.count].into_boxed_slice();
-        self.ti = vec![0; self.count].into_boxed_slice();
-
-        let mut pos = 0;
-        for thread_index in 0..thread_count {
-            let _thread_tv = Arc::clone(&thread_tv_arc[thread_index]);
-            let _thread_ti = Arc::clone(&thread_ti_arc[thread_index]);
-            let thread_tv_array = _thread_tv.lock().unwrap();
-            let thread_ti_array = _thread_ti.lock().unwrap();
-            for i in 0..self.count {
-                if thread_tv_array[i] != 0.0 {
-                    self.tv[pos] = thread_tv_array[i];
-                    self.ti[pos] = thread_ti_array[i];
-                    pos += 1;
-                }
+            if stochastic > EPSILON {
+                _tv.push((bc.vector[index] as f64 - stochastic) / stochastic);
+                _ti.push(index as i64);
+                self.count += 1;
             }
         }
 
-
-
-        /*
-        self.tv = vec![0.0; self.count].into_boxed_slice();
-        self.ti = vec![0; self.count].into_boxed_slice();
-        let mut pos = 0;
-        let mut index_counter: usize = 0;
-        for i in 0..thread_count {
-            let _t = t_arc[i].lock().unwrap();
-            for j in 0..index_bounds_arc[i].1 - index_bounds_arc[i].0 {
-                if _t[j] != 0.0 {
-                    self.tv[pos] = _t[j];
-                    self.ti[pos] = (index_counter + j) as i64;
-                    pos += 1;
-                }
+        while p1p2_i < p1p2.len() {
+            let stochastic = p1p2[p1p2_i].1 * total_div_2;
+            if stochastic > EPSILON {
+                _tv.push((bc.vector[p1p2[p1p2_i].0] as f64 - stochastic) / stochastic);
+                _ti.push(p1p2[p1p2_i].0 as i64);
+                self.count += 1;
             }
-            index_counter += index_bounds_arc[i].1 - index_bounds_arc[i].0;
+            p1p2_i += 1;
         }
 
-         */
-
-        /*
-        for i in 0..M {
-            if t[i] != 0.0 {
-                self.tv[pos] = t[i];
-                self.ti[pos] = i as i64;
-                pos += 1;
+        while p3p4_i < p3p4.len() {
+            let stochastic = p3p4[p3p4_i].1 * total_div_2;
+            if stochastic > EPSILON {
+                _tv.push((bc.vector[p3p4[p3p4_i].0] as f64 - stochastic) / stochastic);
+                _ti.push(p3p4[p3p4_i].0 as i64);
+                self.count += 1;
             }
+            p3p4_i += 1;
         }
 
-         */
-        profiler.end("calculate_tv_and_ti");
+        self.tv = _tv.into_boxed_slice();
+        self.ti = _ti.into_boxed_slice();
 
+        //profiler.end("calculate_t");
     }
 
     fn init_buffer(&mut self, bc: &mut BacteriaCounters, buffer: [u8; LEN - 1]) {
@@ -439,32 +330,53 @@ fn compare_all_bacteria(program_vars: &mut Vars, profiler: &mut Profiler, thread
     profiler.start("init_bacteria");
     let mut bacteria_array = vec![];
 
+    let pool = ThreadPool::new(thread_count);
+    let (tx, rx) = channel();
     for i in 0..program_vars.bacteria_count {
         println!("load {} of {}", i + 1, program_vars.bacteria_count);
-        bacteria_array.push(Bacteria {
+        bacteria_array.push(Arc::new(Mutex::new(Bacteria {
             count: 0,
             tv: vec![].into_boxed_slice(),
-            ti: vec![].into_boxed_slice()
+            ti: vec![].into
+        })));
+        //profiler.start(format!("init_bacteria {}", i).as_str());
+
+        let tx = tx.clone();
+        let path = program_vars.bacteria_path[i as usize].clone();
+        let thread_bacteria_array = Arc::clone(&bacteria_array[i as usize]);
+        pool.execute(move || {
+            let mut thread_bacteria_array_local = thread_bacteria_array.lock().unwrap();
+            thread_bacteria_array_local.init(&path);
+            tx.send(1);
         });
-        profiler.start(format!("init_bacteria {}", i).as_str());
-        bacteria_array[i as usize].init(&program_vars.bacteria_path[i as usize], profiler, thread_count);
-        profiler.end(format!("init_bacteria {}", i).as_str());
+
+        //profiler.end(format!("init_bacteria {}", i).as_str());
     }
     profiler.end("init_bacteria");
+    profiler.start("wait for pool to finish");
+    for _ in 0..program_vars.bacteria_count {
+        rx.recv().unwrap();
+    }
+    profiler.end("wait for pool to finish");
 
-    profiler.start("compare_bacteria");
-
+    profiler.start("clone array");
     let mut bacteria_array_arc = vec![];
     for bacteria in bacteria_array {
-        bacteria_array_arc.push(Arc::new(bacteria));
+        let test = bacteria.lock().unwrap();
+        bacteria_array_arc.push(Arc::new(Bacteria {
+            count: test.count.clone(),
+            tv: test.tv.clone(),
+            ti: test.ti.clone()
+        }));
     }
-
+    profiler.end("clone array");
+    profiler.start("compare_bacteria");
     let mut output = String::new();
+    let result_array_arc = Arc::new(Mutex::new(vec![String::new(); ((program_vars.bacteria_count.pow(2) - program_vars.bacteria_count) / 2) as usize]));
 
     let pool = ThreadPool::new(thread_count);
-    let result_array_arc = Arc::new(Mutex::new(vec![String::new(); ((program_vars.bacteria_count.pow(2) - program_vars.bacteria_count) / 2) as usize].into_boxed_slice()));
-    let (tx, rx) = channel();
 
+    let (tx, rx) = channel();
     for i in 0..program_vars.bacteria_count as usize {
         for j in i+1..program_vars.bacteria_count as usize {
             //print!("{} {} -> ", i, j);
@@ -478,24 +390,30 @@ fn compare_all_bacteria(program_vars: &mut Vars, profiler: &mut Profiler, thread
             let compared_indexes = format!("{} {} ->", i, j);
             pool.execute(move || {
                 let correlation = compare_bacteria(&b1, &b2/*, profiler*/);
+                let index = ((_i * (bacteria_count as usize - 1)) - triangular_number(_i as usize)) + _j - 1;
                 let mut result_array_lock = result_array.lock().unwrap();
-                result_array_lock[((_i * (bacteria_count as usize - 1)) - triangular_number(_i as usize)) + _j - 1] = format!("{} {:.20}\n", compared_indexes, correlation);
+                //let result_array_ptr = (result_array.as_ptr() as *mut String).offset(index as isize);
+                //*result_array_ptr = format!("{} {:.20}\n", compared_indexes, correlation);
+                result_array_lock[index] = format!("{} {:.20}\n", compared_indexes, correlation);
                 drop(result_array_lock);
                 tx.send(1);
-            });
+           });
         }
     }
+
 
     for _ in 0..((program_vars.bacteria_count.pow(2) - program_vars.bacteria_count) / 2) {
         rx.recv().unwrap();
     }
 
     let results = result_array_arc.clone().lock().unwrap().clone();
-    for i in 0..results.len() {
-        output.push_str(&results[i])
+    //let results = Arc::clone(&result_array_arc);
+    for i in results {
+        output.push_str(&*i);
     }
     profiler.end("compare_bacteria");
     print!("{}", output);
+
     return output;
 }
 
