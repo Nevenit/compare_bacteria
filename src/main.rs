@@ -43,8 +43,8 @@ pub struct Bacteria {
     //total_l: i64,
     //complement: i64,
     pub count: usize,
-    pub tv: Box<[f64]>,
-    pub ti: Box<[i64]>
+    pub tv: Vec<f64>,
+    pub ti: Vec<i64>
 }
 
 pub struct BacteriaCounters {
@@ -167,8 +167,8 @@ impl Bacteria {
         //profiler.end("calculate p1 p2 p3 p4");
         //profiler.start("calculate_t");
 
-        let mut _tv = vec![];
-        let mut _ti = vec![];
+        self.tv = vec![];
+        self.ti = vec![];
 
         let mut p1p2_i = 0;
         let mut p3p4_i = 0;
@@ -193,8 +193,8 @@ impl Bacteria {
             }
 
             if stochastic > EPSILON {
-                _tv.push((bc.vector[index] as f64 - stochastic) / stochastic);
-                _ti.push(index as i64);
+                self.tv.push((bc.vector[index] as f64 - stochastic) / stochastic);
+                self.ti.push(index as i64);
                 self.count += 1;
             }
         }
@@ -202,8 +202,8 @@ impl Bacteria {
         while p1p2_i < p1p2.len() {
             let stochastic = p1p2[p1p2_i].1 * total_div_2;
             if stochastic > EPSILON {
-                _tv.push((bc.vector[p1p2[p1p2_i].0] as f64 - stochastic) / stochastic);
-                _ti.push(p1p2[p1p2_i].0 as i64);
+                self.tv.push((bc.vector[p1p2[p1p2_i].0] as f64 - stochastic) / stochastic);
+                self.ti.push(p1p2[p1p2_i].0 as i64);
                 self.count += 1;
             }
             p1p2_i += 1;
@@ -212,15 +212,12 @@ impl Bacteria {
         while p3p4_i < p3p4.len() {
             let stochastic = p3p4[p3p4_i].1 * total_div_2;
             if stochastic > EPSILON {
-                _tv.push((bc.vector[p3p4[p3p4_i].0] as f64 - stochastic) / stochastic);
-                _ti.push(p3p4[p3p4_i].0 as i64);
+                self.tv.push((bc.vector[p3p4[p3p4_i].0] as f64 - stochastic) / stochastic);
+                self.ti.push(p3p4[p3p4_i].0 as i64);
                 self.count += 1;
             }
             p3p4_i += 1;
         }
-
-        self.tv = _tv.into_boxed_slice();
-        self.ti = _ti.into_boxed_slice();
 
         //profiler.end("calculate_t");
     }
@@ -336,8 +333,8 @@ fn compare_all_bacteria(program_vars: &mut Vars, profiler: &mut Profiler, thread
         println!("load {} of {}", i + 1, program_vars.bacteria_count);
         bacteria_array.push(Arc::new(Mutex::new(Bacteria {
             count: 0,
-            tv: vec![].into_boxed_slice(),
-            ti: vec![].into
+            tv: vec![],
+            ti: vec![]
         })));
         //profiler.start(format!("init_bacteria {}", i).as_str());
 
