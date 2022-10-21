@@ -137,22 +137,23 @@ impl Bacteria {
                 }
 
                 // Initialise the buffer array
-                //let mut buffer: [u8; LEN - 1] = [0 as u8; LEN - 1];
+                let mut buffer: [char; LEN - 1] = [0 as char; LEN - 1];
 
                 // Loop for the length of our kmer and add the bytes to the buffer
-                //let mut j = 0;
-                //while j < LEN - 1 {
-                //    i += 1;
-                //    buffer[j] = file_bytes[i];
-                //    j += 1;
-                //}
+                let mut j = 0;
+                while j < LEN - 1 {
+                    i += 1;
+                    buffer[j] = chars[i];
+                    j += 1;
+                }
 
                 //profiler.end("compute_buffer");
                 //profiler.start("init_buffer");
 
                 // Add buffer to vectors
-                self.init_buffer(&mut bc, &chars[i+1..i+LEN-1]);
-                i += LEN;
+                self.init_buffer(&mut bc, buffer);
+                //self.init_buffer(&mut bc, &chars[i+1..i+LEN]);
+                //i += LEN;
                 //profiler.end("init_buffer");
             }// If char isn't new line or end of file
             else if chars[i] != '\n' && chars[i] != 13 as char{
@@ -191,18 +192,26 @@ impl Bacteria {
         //profiler.start("calculate p1 p2 p3 p4");
 
         // Calculate and fill the p1p2 array
-        let mut p1p2: Vec<(usize, f64)> = vec![];
+        //let mut p1p2: Vec<(usize, f64)> = vec![];
+        let mut p1p2: Box<[(usize, f64)]>= vec![(0, 0.0); second_div_total.len() * one_l_div_total.len()].into_boxed_slice();
+        let mut i = 0;
         for div_aa in &second_div_total {
             for mod_aa in &one_l_div_total {
-                p1p2.push((div_aa.0 * AA_NUMBER + mod_aa.0, div_aa.1 * mod_aa.1))
+                //p1p2.push((div_aa.0 * AA_NUMBER + mod_aa.0, div_aa.1 * mod_aa.1));
+                p1p2[i] = (div_aa.0 * AA_NUMBER + mod_aa.0, div_aa.1 * mod_aa.1);
+                i += 1;
             }
         }
 
         // Calculate and fill the 0304 array
-        let mut p3p4: Vec<(usize, f64)> = vec![];
+        //let mut p3p4: Vec<(usize, f64)> = vec![];
+        let mut p3p4: Box<[(usize, f64)]>= vec![(0, 0.0); second_div_total.len() * one_l_div_total.len()].into_boxed_slice();
+        let mut i = 0;
         for div_m1 in &one_l_div_total {
             for mod_m1 in &second_div_total {
-                p3p4.push((div_m1.0 * M1 + mod_m1.0, div_m1.1 * mod_m1.1))
+                //p3p4.push((div_m1.0 * M1 + mod_m1.0, div_m1.1 * mod_m1.1))
+                p3p4[i] = (div_m1.0 * M1 + mod_m1.0, div_m1.1 * mod_m1.1);
+                i += 1;
             }
         }
 
@@ -264,7 +273,7 @@ impl Bacteria {
         //profiler.end("calculate_t");
     }
 
-    fn init_buffer(&mut self, bc: &mut BacteriaCounters, buffer: &[char]) {
+    fn init_buffer(&mut self, bc: &mut BacteriaCounters, buffer: [char; LEN - 1]) {
         bc.complement += 1;
         bc.indexes = 0;
         for i in 0..buffer.len() {
@@ -498,7 +507,7 @@ fn main() {
     read_input_file(&args[1], &mut program_vars);
 
     // Analise each bacteria file and compare them
-    let output = compare_all_bacteria(&mut program_vars, &mut profiler, 12);
+    let output = compare_all_bacteria(&mut program_vars, &mut profiler, 6);
 
     // Verify output is correct, used to make sure functionality isnt broken
     verify_output(output);
