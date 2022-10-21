@@ -35,22 +35,15 @@ impl Vars {
 }
 
 pub struct Bacteria {
-    //vector: Box<[i64]>,
-    //second: Box<[i64]>,
-    //one_l: Box<[i64]>,
-    //indexes: i64,
-    //total: i64,
-    //total_l: i64,
-    //complement: i64,
     pub count: usize,
     pub tv: Vec<f64>,
     pub ti: Vec<i64>
 }
 
 pub struct BacteriaCounters {
-    vector: Box<[i32]>,
-    second: Box<[i32]>,
-    one_l: Box<[i32]>,
+    vector: Vec<i32>,
+    second: Vec<i32>,
+    one_l: Vec<i32>,
     indexes: i64,
     total: i64,
     total_l: i64,
@@ -66,7 +59,7 @@ impl Bacteria {
         let bacteria_file = fs::read_to_string(&file).unwrap();
 
         // convert it to bytes
-        let file_bytes = bacteria_file.as_bytes();
+        //let file_bytes = bacteria_file.as_bytes();
 
         //profiler.end("read_file");
 
@@ -74,9 +67,9 @@ impl Bacteria {
 
         // Initialise the BacteriaCounters which is used as the private variables for the struct
         let mut bc = BacteriaCounters {
-            vector: vec![0; M].into_boxed_slice(),
-            second: vec![0; M1].into_boxed_slice(),
-            one_l: vec![0; AA_NUMBER].into_boxed_slice(),
+            vector: vec![0; M],
+            second: vec![0; M1],
+            one_l: vec![0; AA_NUMBER],
             indexes: 0,
             total: 0,
             total_l: 0,
@@ -85,45 +78,94 @@ impl Bacteria {
         //profiler.end("init_counters");
 
         //profiler.start("extract_kmers");
+        let chars: Vec<char> = bacteria_file.chars().collect();
+        /*
+
+        loop {
+            match chars.next() {
+                Some(mut c) => {
+                    if c == '>' {
+                        //profiler.start("compute_buffer");
+
+                        // Skip all bytes until new lines because this is a comment line
+                        while c != '\n' {
+                            c = chars.next().unwrap();
+                        }
+
+                        // Initialise the buffer array
+                        let mut buffer: [char; LEN - 1] = [0 as char; LEN - 1];
+
+                        // Loop for the length of our kmer and add the bytes to the buffer
+                        let mut j = 0;
+                        while j < LEN - 1 {
+                            buffer[j] = chars.next().unwrap();
+                            j += 1;
+                        }
+
+                        //profiler.end("compute_buffer");
+                        //profiler.start("init_buffer");
+
+                        // Add buffer to vectors
+                        self.init_buffer(&mut bc, buffer);
+                        //profiler.end("init_buffer");
+                    }// If char isn't new line or end of file
+                    else if c != '\n' && c != 13 as char {
+                        //profiler.start("cont_buffer");
+
+                        // Add char to kmers
+                        self.cont_buffer(&mut bc, c);
+                        //profiler.end("cont_buffer");
+                    }
+                },
+                None => { break }
+            }
+        }
+
+         */
+
 
         // Loop through all bytes of the file
+
         let mut i = 0;
-        while i < file_bytes.len(){
-            if file_bytes[i] as char == '>' {
+        while i < chars.len(){
+            if chars[i] == '>' {
                 //profiler.start("compute_buffer");
 
                 // Skip all bytes until new lines because this is a comment line
-                while file_bytes[i] as char != '\n' {
+                while chars[i] != '\n' {
                     i += 1;
                 }
 
                 // Initialise the buffer array
-                let mut buffer: [u8; LEN - 1] = [0 as u8; LEN - 1];
+                //let mut buffer: [u8; LEN - 1] = [0 as u8; LEN - 1];
 
                 // Loop for the length of our kmer and add the bytes to the buffer
-                let mut j = 0;
-                while j < LEN - 1 {
-                    i += 1;
-                    buffer[j] = file_bytes[i];
-                    j += 1;
-                }
+                //let mut j = 0;
+                //while j < LEN - 1 {
+                //    i += 1;
+                //    buffer[j] = file_bytes[i];
+                //    j += 1;
+                //}
 
                 //profiler.end("compute_buffer");
                 //profiler.start("init_buffer");
 
                 // Add buffer to vectors
-                self.init_buffer(&mut bc, buffer);
+                self.init_buffer(&mut bc, &chars[i+1..i+LEN-1]);
+                i += LEN;
                 //profiler.end("init_buffer");
             }// If char isn't new line or end of file
-            else if file_bytes[i] as char != '\n' && file_bytes[i] != 13 {
+            else if chars[i] != '\n' && chars[i] != 13 as char{
                 //profiler.start("cont_buffer");
 
                 // Add char to kmers
-                self.cont_buffer(&mut bc, file_bytes[i] as char);
+                self.cont_buffer(&mut bc, chars[i]);
                 //profiler.end("cont_buffer");
             }
             i += 1;
         }
+
+
         //profiler.end("extract_kmers");
         //profiler.start("fill_arrays");
 
@@ -222,11 +264,11 @@ impl Bacteria {
         //profiler.end("calculate_t");
     }
 
-    fn init_buffer(&mut self, bc: &mut BacteriaCounters, buffer: [u8; LEN - 1]) {
+    fn init_buffer(&mut self, bc: &mut BacteriaCounters, buffer: &[char]) {
         bc.complement += 1;
         bc.indexes = 0;
         for i in 0..buffer.len() {
-            let enc = encode(buffer[i] as char);
+            let enc = encode(buffer[i]);
             bc.one_l[enc] += 1;
             bc.total_l += 1;
             bc.indexes = bc.indexes * AA_NUMBER as i64 + enc as i64;
