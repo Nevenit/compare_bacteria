@@ -11,10 +11,11 @@ use std::sync::{Arc, Mutex};
 use std::thread;
 use threadpool::ThreadPool;
 use std::sync::mpsc::channel;
+use cache_padded::CachePadded;
 
-const CODE: [i32; 26] = [0, 2, 1, 2, 3, 4, 5, 6, 7, -1, 8, 9, 10, 11, -1, 12, 13, 14, 15, 16, 1, 17, 18, 5, 19, 3];
+const CODE: [usize; 26] = [0, 2, 1, 2, 3, 4, 5, 6, 7, 100, 8, 9, 10, 11, 100, 12, 13, 14, 15, 16, 1, 17, 18, 5, 19, 3];
 const LEN: usize = 6;
-const  AA_NUMBER: usize = 20;
+const AA_NUMBER: usize = 20;
 const EPSILON: f64 = 1e-010;
 const M: usize = usize::pow(AA_NUMBER, LEN as u32);
 const M1: usize = usize::pow(AA_NUMBER, (LEN - 1) as u32);
@@ -34,20 +35,21 @@ impl Vars {
     }
 }
 
+#[derive(Clone, Debug)]
 pub struct Bacteria {
     pub count: usize,
     pub tv: Vec<f64>,
-    pub ti: Vec<i64>
+    pub ti: Vec<usize>
 }
 
 pub struct BacteriaCounters {
-    vector: Vec<i32>,
-    second: Vec<i32>,
-    one_l: Vec<i32>,
-    indexes: i64,
-    total: i64,
-    total_l: i64,
-    complement: i64
+    vector: Box<[i32]>,
+    second: Box<[i32]>,
+    one_l: Box<[i32]>,
+    indexes: usize,
+    total: i32,
+    total_l: i32,
+    complement: i32
 }
 
 impl Bacteria {
@@ -67,9 +69,9 @@ impl Bacteria {
 
         // Initialise the BacteriaCounters which is used as the private variables for the struct
         let mut bc = BacteriaCounters {
-            vector: vec![0; M],
-            second: vec![0; M1],
-            one_l: vec![0; AA_NUMBER],
+            vector: vec![0; M].into_boxed_slice(),
+            second: vec![0; M1].into_boxed_slice(),
+            one_l: vec![0; AA_NUMBER].into_boxed_slice(),
             indexes: 0,
             total: 0,
             total_l: 0,
@@ -171,7 +173,7 @@ impl Bacteria {
         //profiler.start("fill_arrays");
 
         // Initialise variables
-        let total_plus_complement: f64 = bc.total as f64 + bc.complement as f64 ;
+        let total_plus_complement = bc.total + bc.complement;
         let total_div_2: f64 = bc.total as f64 * 0.5;
 
         // Fill the one_l_div_total array
@@ -185,7 +187,7 @@ impl Bacteria {
         let mut second_div_total: Vec<(usize, f64)> = vec![];
         for i in 0..M1 {
             if bc.second[i] == 0 {continue}
-            second_div_total.push((i, bc.second[i] as f64 / total_plus_complement));
+            second_div_total.push((i, bc.second[i] as f64 / total_plus_complement as f64));
         }
 
         //profiler.end("fill_arrays");
@@ -245,7 +247,7 @@ impl Bacteria {
 
             if stochastic > EPSILON {
                 self.tv.push((bc.vector[index] as f64 - stochastic) / stochastic);
-                self.ti.push(index as i64);
+                self.ti.push(index);
                 self.count += 1;
             }
         }
@@ -254,7 +256,7 @@ impl Bacteria {
             let stochastic = p1p2[p1p2_i].1 * total_div_2;
             if stochastic > EPSILON {
                 self.tv.push((bc.vector[p1p2[p1p2_i].0] as f64 - stochastic) / stochastic);
-                self.ti.push(p1p2[p1p2_i].0 as i64);
+                self.ti.push(p1p2[p1p2_i].0);
                 self.count += 1;
             }
             p1p2_i += 1;
@@ -264,7 +266,7 @@ impl Bacteria {
             let stochastic = p3p4[p3p4_i].1 * total_div_2;
             if stochastic > EPSILON {
                 self.tv.push((bc.vector[p3p4[p3p4_i].0] as f64 - stochastic) / stochastic);
-                self.ti.push(p3p4[p3p4_i].0 as i64);
+                self.ti.push(p3p4[p3p4_i].0);
                 self.count += 1;
             }
             p3p4_i += 1;
@@ -280,7 +282,7 @@ impl Bacteria {
             let enc = encode(buffer[i]);
             bc.one_l[enc] += 1;
             bc.total_l += 1;
-            bc.indexes = bc.indexes * AA_NUMBER as i64 + enc as i64;
+            bc.indexes = bc.indexes * AA_NUMBER + enc;
         }
         bc.second[bc.indexes as usize] += 1;
     }
@@ -289,16 +291,16 @@ impl Bacteria {
         let enc = encode(ch);
         bc.one_l[enc] += 1;
         bc.total_l += 1;
-        let index = bc.indexes * AA_NUMBER as i64 + enc as i64;
+        let index = bc.indexes * AA_NUMBER + enc;
         bc.vector[index as usize] += 1;
         bc.total += 1;
-        bc.indexes = (bc.indexes % M2 as i64) * AA_NUMBER as i64 + enc as i64;
-        bc.second[bc.indexes as usize] += 1;
+        bc.indexes = (bc.indexes % M2) * AA_NUMBER + enc;
+        bc.second[bc.indexes] += 1;
     }
 }
 
 fn encode(ch: char) -> usize {
-    CODE[(ch as u8 - 'A' as u8) as usize] as usize
+    CODE[(ch as u8 - 65) as usize]
 }
 
 fn read_input_file(file: &str, program_vars: &mut Vars) {
@@ -380,6 +382,7 @@ fn compare_all_bacteria(program_vars: &mut Vars, profiler: &mut Profiler, thread
 
     let pool = ThreadPool::new(thread_count);
     let (tx, rx) = channel();
+
     for i in 0..program_vars.bacteria_count {
         println!("load {} of {}", i + 1, program_vars.bacteria_count);
         bacteria_array.push(Arc::new(Mutex::new(Bacteria {
@@ -392,6 +395,7 @@ fn compare_all_bacteria(program_vars: &mut Vars, profiler: &mut Profiler, thread
         let tx = tx.clone();
         let path = program_vars.bacteria_path[i as usize].clone();
         let thread_bacteria_array = Arc::clone(&bacteria_array[i as usize]);
+
         pool.execute(move || {
             let mut thread_bacteria_array_local = thread_bacteria_array.lock().unwrap();
             thread_bacteria_array_local.init(&path);
@@ -409,13 +413,8 @@ fn compare_all_bacteria(program_vars: &mut Vars, profiler: &mut Profiler, thread
 
     profiler.start("clone array");
     let mut bacteria_array_arc = vec![];
-    for bacteria in bacteria_array {
-        let test = bacteria.lock().unwrap();
-        bacteria_array_arc.push(Arc::new(Bacteria {
-            count: test.count.clone(),
-            tv: test.tv.clone(),
-            ti: test.ti.clone()
-        }));
+    for bacteria in bacteria_array { ;
+        bacteria_array_arc.push(Arc::new(bacteria.lock().unwrap().clone()));
     }
     profiler.end("clone array");
     profiler.start("compare_bacteria");
