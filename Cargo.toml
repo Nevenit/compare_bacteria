@@ -13,7 +13,6 @@ rustc-hash = "1.1.0"
 profiling = "1.0.6"
 colored = "2.0.0"
 threadpool = "1.8.1"
-cache-padded = "1.2.0"
 
 [features]
 profile-with-superluminal = ["profiling/profile-with-superluminal"]

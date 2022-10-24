@@ -11,9 +11,9 @@ use std::sync::{Arc, Mutex};
 use std::thread;
 use threadpool::ThreadPool;
 use std::sync::mpsc::channel;
-use cache_padded::CachePadded;
+use std::mem::size_of_val;
 
-const CODE: [usize; 26] = [0, 2, 1, 2, 3, 4, 5, 6, 7, 100, 8, 9, 10, 11, 100, 12, 13, 14, 15, 16, 1, 17, 18, 5, 19, 3];
+const CODE: [usize; 26] = [0, 2, 1, 2, 3, 4, 5, 6, 7, 0, 8, 9, 10, 11, 0, 12, 13, 14, 15, 16, 1, 17, 18, 5, 19, 3];
 const LEN: usize = 6;
 const AA_NUMBER: usize = 20;
 const EPSILON: f64 = 1e-010;
@@ -272,6 +272,15 @@ impl Bacteria {
             p3p4_i += 1;
         }
 
+        println!("{}: size of `tv` is {}", file, size_of_val(&*self.tv));
+        println!("{}: size of `ti` is {}", file, size_of_val(&*self.ti));
+        println!("{}: size of `p1p2` is {}", file, size_of_val(&*p1p2));
+        println!("{}: size of `p3p4` is {}", file, size_of_val(&*p3p4));
+        println!("{}: size of `second_div_total` is {}", file, size_of_val(&*second_div_total));
+        println!("{}: size of `one_l_div_total` is {}", file, size_of_val(&*one_l_div_total));
+        println!("{}: size of `vector` is {}", file, size_of_val(&*bc.vector));
+        println!("{}: size of `second` is {}", file, size_of_val(&*bc.second));
+        println!("{}: size of `one_l` is {}", file, size_of_val(&*bc.one_l));
         //profiler.end("calculate_t");
     }
 
@@ -506,7 +515,7 @@ fn main() {
     read_input_file(&args[1], &mut program_vars);
 
     // Analise each bacteria file and compare them
-    let output = compare_all_bacteria(&mut program_vars, &mut profiler, 6);
+    let output = compare_all_bacteria(&mut program_vars, &mut profiler, 12);
 
     // Verify output is correct, used to make sure functionality isnt broken
     verify_output(output);
